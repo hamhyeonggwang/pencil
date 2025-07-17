@@ -87,8 +87,8 @@ function splitHangul(str) {
     return result;
 }
 
-// 예시 단어/힌트 데이터 (받침 없는 단어만 사용)
-const STAGE_WORDS = [
+// 동적 단어/힌트 데이터 관리
+let STAGE_WORDS = [
     { word: '백발백중', hint: '무엇을 하든 틀리지 않고 모두 잘 맞음' },
     { word: '살신성인', hint: '자신을 희생하여 남을 이롭게 함' },
     { word: '괄목상대', hint: '상대방의 학식이나 능력이 크게 늘어남' },
@@ -100,6 +100,56 @@ const STAGE_WORDS = [
     { word: '만장일치', hint: '모든 사람의 의견이 같음' },
     { word: '반신반의', hint: '반은 믿고 반은 의심함' }
 ];
+
+// 로컬 스토리지에서 단어 데이터 로드
+function loadWordsFromStorage() {
+    const savedWords = localStorage.getItem('gameWords');
+    if (savedWords) {
+        STAGE_WORDS = JSON.parse(savedWords);
+    }
+}
+
+// 로컬 스토리지에 단어 데이터 저장
+function saveWordsToStorage() {
+    localStorage.setItem('gameWords', JSON.stringify(STAGE_WORDS));
+}
+
+// 단어 추가 함수
+function addWord(word, hint) {
+    if (word && hint) {
+        STAGE_WORDS.push({ word: word.trim(), hint: hint.trim() });
+        saveWordsToStorage();
+        return true;
+    }
+    return false;
+}
+
+// 단어 삭제 함수
+function removeWord(index) {
+    if (index >= 0 && index < STAGE_WORDS.length) {
+        STAGE_WORDS.splice(index, 1);
+        saveWordsToStorage();
+        return true;
+    }
+    return false;
+}
+
+// 단어 목록 표시 함수
+function displayWordList() {
+    const wordList = document.getElementById('wordList');
+    wordList.innerHTML = '';
+    
+    STAGE_WORDS.forEach((item, index) => {
+        const wordItem = document.createElement('div');
+        wordItem.style.cssText = 'border:1px solid #ddd;margin:5px 0;padding:8px;border-radius:4px;background:#f9f9f9;';
+        wordItem.innerHTML = `
+            <div style="font-weight:bold;color:#333;margin-bottom:3px;">${item.word}</div>
+            <div style="font-size:12px;color:#666;margin-bottom:5px;">${item.hint}</div>
+            <button onclick="removeWord(${index});displayWordList();" style="background:#f44336;color:white;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:11px;">삭제</button>
+        `;
+        wordList.appendChild(wordItem);
+    });
+}
 
 // 스테이지별 플랫폼/몬스터 난이도 설정
 const STAGE_DIFFICULTY = [
@@ -1483,6 +1533,74 @@ function startStage(idx) {
 
 // 게임 초기화 및 시작
 window.addEventListener('DOMContentLoaded', () => {
+    // 저장된 단어 데이터 로드
+    loadWordsFromStorage();
+    
+    // 단어 관리 UI 이벤트 핸들러
+    const manageWordsBtn = document.getElementById('manageWordsBtn');
+    const addWordBtn = document.getElementById('addWordBtn');
+    const wordInputUI = document.getElementById('wordInputUI');
+    const addWordBtnInUI = document.getElementById('addWordBtn');
+    const closeWordInputBtn = document.getElementById('closeWordInputBtn');
+    const wordInput = document.getElementById('wordInput');
+    const hintInput = document.getElementById('hintInput');
+    
+    // 단어 추가 버튼 클릭 (상단 버튼)
+    addWordBtn.addEventListener('click', () => {
+        wordInputUI.style.display = wordInputUI.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // 단어 관리 버튼 클릭
+    manageWordsBtn.addEventListener('click', () => {
+        const wordListUI = document.getElementById('wordListUI');
+        const closeWordListBtn = document.getElementById('closeWordListBtn');
+        
+        // 단어 목록 표시
+        displayWordList();
+        wordListUI.style.display = wordListUI.style.display === 'none' ? 'block' : 'none';
+        
+        // 단어 목록 닫기 버튼
+        closeWordListBtn.addEventListener('click', () => {
+            wordListUI.style.display = 'none';
+        });
+    });
+    
+    // 단어 추가 버튼 클릭 (UI 내부 버튼)
+    addWordBtnInUI.addEventListener('click', () => {
+        const word = wordInput.value;
+        const hint = hintInput.value;
+        
+        if (addWord(word, hint)) {
+            wordInput.value = '';
+            hintInput.value = '';
+            showTempMessage('단어가 추가되었습니다!', 2000);
+            // 단어 목록 업데이트
+            displayWordList();
+        } else {
+            showTempMessage('단어와 힌트를 모두 입력해주세요.', 2000);
+        }
+    });
+    
+    // 닫기 버튼 클릭
+    closeWordInputBtn.addEventListener('click', () => {
+        wordInputUI.style.display = 'none';
+        wordInput.value = '';
+        hintInput.value = '';
+    });
+    
+    // Enter 키로 단어 추가
+    wordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addWordBtn.click();
+        }
+    });
+    
+    hintInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            addWordBtn.click();
+        }
+    });
+    
     // 게임 루프 시작
     gameLoop();
 });

@@ -3,13 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>슈퍼마리오 게임</title>
+    <title>한국어 학습 플랫폼 게임</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="gameContainer">
         <div id="startText" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;font-size:2.5em;font-weight:bold;color:#fff;text-shadow:2px 2px 8px #222;cursor:pointer;">게임 시작</div>
         <button id="muteBtn" style="position:absolute;left:-9999px;top:10px;z-index:101;">🔊</button>
+        
+        <!-- 단어 입력 UI -->
+        <div id="wordInputUI" style="position:absolute;top:10px;left:10px;z-index:200;background:rgba(255,255,255,0.9);padding:15px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.3);display:none;">
+            <h3 style="margin:0 0 10px 0;color:#333;">단어 추가</h3>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;color:#333;">단어:</label>
+                <input type="text" id="wordInput" placeholder="예: 백발백중" style="width:200px;padding:5px;border:1px solid #ccc;border-radius:4px;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <label style="display:block;margin-bottom:5px;color:#333;">힌트:</label>
+                <input type="text" id="hintInput" placeholder="예: 무엇을 하든 틀리지 않고 모두 잘 맞음" style="width:200px;padding:5px;border:1px solid #ccc;border-radius:4px;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <button id="addWordBtn" style="background:#4CAF50;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:5px;">추가</button>
+                <button id="closeWordInputBtn" style="background:#f44336;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">닫기</button>
+            </div>
+        </div>
+        
+        <!-- 단어 관리 버튼 -->
+        <button id="manageWordsBtn" style="position:absolute;top:10px;right:10px;z-index:150;background:#2196F3;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">단어 목록</button>
+        <button id="addWordBtn" style="position:absolute;top:10px;right:120px;z-index:150;background:#4CAF50;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">단어 추가</button>
+        
+        <!-- 단어 목록 UI -->
+        <div id="wordListUI" style="position:absolute;top:50px;right:10px;z-index:200;background:rgba(255,255,255,0.95);padding:15px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.3);max-width:300px;max-height:400px;overflow-y:auto;display:none;">
+            <h3 style="margin:0 0 10px 0;color:#333;">단어 목록</h3>
+            <div id="wordList" style="margin-bottom:10px;"></div>
+            <button id="closeWordListBtn" style="background:#f44336;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">닫기</button>
+        </div>
         <div id="stageHint"></div>
         <div class="cloud cloud1"></div>
         <div class="cloud cloud2"></div>
