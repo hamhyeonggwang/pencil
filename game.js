@@ -1471,8 +1471,8 @@ function setupMobileControls() {
     btnLeft.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['arrowleft'] = false; });
     btnRight.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['arrowright'] = true; });
     btnRight.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['arrowright'] = false; });
-    btnJump.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys[' '] = true; });
-    btnJump.addEventListener('touchend', e => { e.preventDefault(); gameState.keys[' '] = false; });
+    btnJump.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['w'] = true; });
+    btnJump.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['w'] = false; });
 }
 window.addEventListener('DOMContentLoaded', setupMobileControls);
 
