@@ -151,6 +151,18 @@ function displayWordList() {
     });
 }
 
+// 스케치북에 획득한 자모 표시 함수
+function updateSketchbook() {
+    const collectedJamosElement = document.getElementById('collectedJamos');
+    if (!collectedJamosElement) return;
+    
+    if (gameState.collectedJamos.length === 0) {
+        collectedJamosElement.innerHTML = '<span style="color:#ccc;font-style:italic;">자모를 수집하세요</span>';
+    } else {
+        collectedJamosElement.innerHTML = gameState.collectedJamos.join(' ');
+    }
+}
+
 // 스테이지별 플랫폼/몬스터 난이도 설정
 const STAGE_DIFFICULTY = [
     // 각 스테이지별 플랫폼 구조와 몬스터 수
@@ -305,6 +317,7 @@ function startStage(idx) {
     console.log('플레이어:', player);
     console.log('적:', enemies);
     stageHintElement.textContent = `힌트: ${stage.hint}`;
+    updateSketchbook();
 }
 
 // spawnFallingJamos 함수 제거, 대신 spawnJamos 함수로 교체
@@ -1495,6 +1508,7 @@ function updateJamos() {
                 gameState.score += 200;
                 if (typeof playSound === 'function') playSound('collect');
                 updateProgressBar(); // 진행 바 갱신
+                updateSketchbook(); // 스케치북 업데이트
             } else {
                 showTempMessage('순서대로 획득하세요!', 1000);
             }
@@ -1529,6 +1543,7 @@ function startStage(idx) {
     console.log('플레이어:', player);
     console.log('적:', enemies);
     stageHintElement.textContent = `힌트: ${stage.hint}`;
+    updateSketchbook();
 } 
 
 // 게임 초기화 및 시작
