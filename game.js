@@ -16,13 +16,13 @@ let gameState = {
 // 플레이어 객체
 let player = {
     x: 100,
-    y: 200,
+    y: getGroundY() - 30 - 10, // player.height=30
     width: 30,
     height: 30,
     velocityX: 0,
     velocityY: 0,
     speed: 5,
-    jumpPower: 12,
+    jumpPower: 15, // 점프력 증가
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
@@ -32,32 +32,37 @@ let player = {
     attackCooldown: 0
 };
 
+// 바닥 y 위치를 동적으로 계산
+function getGroundY() {
+    return canvas.height * 0.7;
+}
+
 // 플랫폼들
 let platforms = [
     // 바닥
-    { x: 0, y: 350, width: 2400, height: 50, color: '#8B4513' },
-    // 중간 플랫폼들
-    { x: 200, y: 280, width: 150, height: 20, color: '#228B22' },
-    { x: 400, y: 200, width: 100, height: 20, color: '#228B22' },
-    { x: 600, y: 250, width: 120, height: 20, color: '#228B22' },
-    { x: 800, y: 180, width: 100, height: 20, color: '#228B22' },
-    { x: 1000, y: 300, width: 150, height: 20, color: '#228B22' },
-    { x: 1200, y: 220, width: 100, height: 20, color: '#228B22' },
-    { x: 1400, y: 160, width: 120, height: 20, color: '#228B22' },
-    { x: 1600, y: 280, width: 100, height: 20, color: '#228B22' },
-    { x: 1800, y: 200, width: 150, height: 20, color: '#228B22' },
-    { x: 2000, y: 300, width: 100, height: 20, color: '#228B22' },
-    { x: 2200, y: 150, width: 200, height: 20, color: '#228B22' }
+    { x: 0, y: getGroundY(), width: 2400, height: 50, color: '#8B4513', isGround: true },
+    // 중간 플랫폼들 (y 좌표는 기존대로)
+    { x: 200, y: 130, width: 150, height: 20, color: '#228B22' },
+    { x: 400, y: 80, width: 100, height: 20, color: '#228B22' },
+    { x: 600, y: 150, width: 120, height: 20, color: '#228B22' },
+    { x: 800, y: 100, width: 100, height: 20, color: '#228B22' },
+    { x: 1000, y: 180, width: 150, height: 20, color: '#228B22' },
+    { x: 1200, y: 120, width: 100, height: 20, color: '#228B22' },
+    { x: 1400, y: 60, width: 120, height: 20, color: '#228B22' },
+    { x: 1600, y: 130, width: 100, height: 20, color: '#228B22' },
+    { x: 1800, y: 80, width: 150, height: 20, color: '#228B22' },
+    { x: 2000, y: 150, width: 100, height: 20, color: '#228B22' },
+    { x: 2200, y: 50, width: 200, height: 20, color: '#228B22' }
 ];
 
 // 적들
 let enemies = [
-    { x: 300, y: 320, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 500, y: 320, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
-    { x: 700, y: 320, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 1100, y: 320, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
-    { x: 1500, y: 320, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 1900, y: 320, width: 25, height: 25, velocityX: 1, direction: 1, alive: true }
+    { x: 300, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
+    { x: 500, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
+    { x: 700, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
+    { x: 1100, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
+    { x: 1500, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
+    { x: 1900, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true }
 ];
 
 // 한글 자음/모음 전체 소스
@@ -155,11 +160,10 @@ function displayWordList() {
 function updateSketchbook() {
     const collectedJamosElement = document.getElementById('collectedJamos');
     if (!collectedJamosElement) return;
-    
     if (gameState.collectedJamos.length === 0) {
         collectedJamosElement.innerHTML = '<span style="color:#ccc;font-style:italic;">자모를 수집하세요</span>';
     } else {
-        collectedJamosElement.innerHTML = gameState.collectedJamos.join(' ');
+        collectedJamosElement.innerHTML = composeHangul(gameState.collectedJamos);
     }
 }
 
@@ -182,78 +186,86 @@ const STAGE_DIFFICULTY = [
 let ladders = [];
 
 function generatePlatforms(stageIdx) {
-    // 다양한 맵 구조: 계단형, 언덕형, 복층형 등
-    const base = [{ x: 0, y: 350, width: 2400, height: 50, color: '#8B4513' }];
+    const base = [{ x: 0, y: getGroundY(), width: 2400, height: 50, color: '#8B4513', isGround: true }];
     const n = STAGE_DIFFICULTY[stageIdx % STAGE_DIFFICULTY.length].platforms;
     const type = stageIdx % 3; // 0: 계단, 1: 언덕, 2: 복층
     const arr = [];
     const usedRects = [];
+    const jumpMax = player.jumpPower * 2.2;
+    const maxHeight = getGroundY() - 60; // 최대 높이 제한
+    
     function isOverlapping(x, y, w, h) {
         return usedRects.some(r => !(x + w <= r.x || x >= r.x + r.w || y + h <= r.y || y >= r.y + r.h));
     }
-    // --- 1단계: 계단형 + 끊어진 길 + 나무 벽 ---
+    
     if (stageIdx === 0) {
-        // 계단형 플랫폼 여러 개
-        for (let i = 0; i < 7; i++) {
-            let px = 200 + i * 260;
-            let py = 300 - i * 35;
-            let pw = 90 + Math.random() * 40;
-            let ph = 20;
-            arr.push({ x: px, y: py, width: pw, height: ph, color: '#228B22' });
-            usedRects.push({ x: px, y: py, w: pw, h: ph });
-        }
-        // 끊어진 길(짧은 플랫폼)
-        for (let i = 0; i < 4; i++) {
-            let px = 400 + i * 400;
-            let py = 340;
-            let pw = 60 + Math.random() * 30;
-            let ph = 18;
-            arr.push({ x: px, y: py, width: pw, height: ph, color: '#b8860b', broken: true });
-            usedRects.push({ x: px, y: py, w: pw, h: ph });
-        }
-        // 나무 벽(세로 장애물) 생성 코드 완전히 제거
+        // 첫 스테이지는 고정
+        return base.concat([
+            { x: 200, y: getGroundY() - 120, width: 150, height: 20, color: '#228B22' },
+            { x: 400, y: getGroundY() - 170, width: 100, height: 20, color: '#228B22' },
+            { x: 600, y: getGroundY() - 140, width: 120, height: 20, color: '#228B22' },
+            { x: 800, y: getGroundY() - 190, width: 100, height: 20, color: '#228B22' },
+            { x: 1000, y: getGroundY() - 110, width: 150, height: 20, color: '#228B22' },
+            { x: 1200, y: getGroundY() - 170, width: 100, height: 20, color: '#228B22' },
+            { x: 1400, y: getGroundY() - 230, width: 120, height: 20, color: '#228B22' },
+            { x: 1600, y: getGroundY() - 140, width: 100, height: 20, color: '#228B22' },
+            { x: 1800, y: getGroundY() - 190, width: 150, height: 20, color: '#228B22' },
+            { x: 2000, y: getGroundY() - 130, width: 100, height: 20, color: '#228B22' },
+            { x: 2200, y: getGroundY() - 250, width: 200, height: 20, color: '#228B22' }
+        ]);
     } else {
+        let lastY = getGroundY();
         for (let i = 0; i < n; i++) {
             let plat;
             let tries = 0;
             do {
                 let px, py, pw, ph;
+                let gapY;
+                
+                // 점프 가능한 높이로 제한
+                gapY = Math.random() * (jumpMax * 0.6) + 40; // 40~jumpMax*0.6+40 범위
+                
                 if (type === 0) { // 계단형
-                    px = 200 + i * 180;
-                    py = 300 - i * 40;
+                    px = 200 + i * 150;
+                    py = lastY - gapY;
                     pw = 100 + Math.random() * 40;
                     ph = 20;
                 } else if (type === 1) { // 언덕형
-                    px = 200 + i * 180;
-                    py = 220 + Math.abs(Math.sin(i/2) * 80);
+                    px = 200 + i * 150;
+                    py = lastY - gapY;
                     pw = 120 + Math.random() * 40;
                     ph = 20;
                 } else { // 복층형
-                    px = 200 + (i%3)*350 + Math.random()*40;
-                    py = 80 + (i%3)*80 + Math.random()*30;
+                    px = 200 + (i%3)*300 + Math.random()*50;
+                    py = lastY - gapY;
                     pw = 100 + Math.random() * 60;
                     ph = 20;
                 }
-                // y값 60~300 제한
-                py = Math.max(60, Math.min(300, py));
+                
+                // 높이 제한 적용
+                py = Math.max(60, Math.min(maxHeight, py));
                 plat = { x: px, y: py, width: pw, height: ph, color: '#228B22' };
                 tries++;
             } while (isOverlapping(plat.x, plat.y, plat.width, plat.height) && tries < 20);
-            if (tries < 20) usedRects.push({ x: plat.x, y: plat.y, w: plat.width, h: plat.height });
-            arr.push(plat);
+            
+            if (tries < 20) {
+                usedRects.push({ x: plat.x, y: plat.y, w: plat.width, h: plat.height });
+                arr.push(plat);
+                lastY = plat.y;
+            }
         }
     }
-    // 사다리 자동 생성 (모든 높은 구조물에 대해 보장)
+    
+    // 사다리 자동 생성 (플랫폼 간 gapY가 점프 높이 초과 시만)
     ladders = [];
     for (let i = 1; i < arr.length; i++) {
         for (let j = 0; j < i; j++) {
             const lower = arr[j], upper = arr[i];
             const gapY = lower.y - (upper.y + upper.height);
-            // 점프력보다 높은 간격이면 사다리 생성
-            if (gapY > player.jumpPower * 2.2) {
+            if (gapY > jumpMax * 0.8) { // 점프로 도달할 수 없는 높이일 때만
                 // 이미 이 위치에 사다리가 있는지 확인
                 const ladderX = upper.x + upper.width/2 - 8;
-                const exists = ladders.some(lad => Math.abs(lad.x - ladderX) < 4 && Math.abs(lad.top - (upper.y + upper.height)) < 4 && Math.abs(lad.bottom - lower.y) < 4);
+                const exists = ladders.some(lad => Math.abs(lad.x - ladderX) < 20);
                 if (!exists) {
                     ladders.push({
                         x: ladderX,
@@ -267,6 +279,7 @@ function generatePlatforms(stageIdx) {
             }
         }
     }
+    
     return base.concat(arr);
 }
 
@@ -276,7 +289,7 @@ function generateEnemies(stageIdx) {
     for (let i = 0; i < n; i++) {
         arr.push({
             x: 300 + i * 300 + Math.random() * 100,
-            y: 320,
+            y: getGroundY() - 25,
             width: 25,
             height: 25,
             velocityX: Math.random() > 0.5 ? 1 : -1,
@@ -299,37 +312,36 @@ function startStage(idx) {
     stage.hint = stageData.hint;
     stage.jamos = splitHangul(stage.word);
     platforms = generatePlatforms(idx);
-    // enemies는 아래에서 리젠
     spawnEnemies(idx, 0);
     spawnJamos();
     gameState.collectedJamos = [];
     player.x = 100;
-    player.y = platforms[0].y - player.height;
+    player.y = getGroundY() - player.height - 10;
     player.velocityX = 0;
     player.velocityY = 0;
     player.invulnerable = false;
     player.invulnerableTime = 0;
-    // 보물상자: 항상 x=600, 가장 가까운 플랫폼 위에 고정
-    let plat = platforms.reduce((acc, p) => (Math.abs(p.x-600)<Math.abs(acc.x-600)?p:acc), platforms[0]);
-    treasureChest = { x: 600, y: plat.y-32, width: 32, height: 32, opened: false };
+    // 보물상자: 항상 x=600, 바닥 위에 고정
+    treasureChest = { x: 600, y: getGroundY() - 32, width: 32, height: 32, opened: false };
     // 디버깅 출력
     console.log('플랫폼:', platforms);
     console.log('플레이어:', player);
     console.log('적:', enemies);
     stageHintElement.textContent = `힌트: ${stage.hint}`;
+    stageHintElement.style.display = 'block';
     updateSketchbook();
 }
 
 // spawnFallingJamos 함수 제거, 대신 spawnJamos 함수로 교체
 function spawnJamos() {
-    // 자음/모음을 각 플랫폼 위에 랜덤하게 배치
     const usedRects = [];
     jamos = stage.jamos.map((char, i) => {
         let plat, px, py, tries = 0;
         do {
             plat = platforms[Math.floor(Math.random() * platforms.length)];
             px = plat.x + 20 + Math.random() * (plat.width - 40);
-            py = plat.y - 32; // 플랫폼 위에 배치
+            // 바닥 위에 배치할 경우 getGroundY()-32, 아니면 기존대로
+            py = plat.isGround ? getGroundY() - 32 : plat.y - 32;
             tries++;
         } while (usedRects.some(r => Math.abs(r.x - px) < 40 && Math.abs(r.y - py) < 40) && tries < 20);
         usedRects.push({ x: px, y: py });
@@ -357,14 +369,13 @@ function updateJamos() {
 }
 
 function spawnEnemies(stageIdx, repeatCount) {
-    // 반복 횟수에 따라 몬스터 수/속도 증가
     const base = STAGE_DIFFICULTY[stageIdx % STAGE_DIFFICULTY.length].enemies;
     const n = base + repeatCount;
     enemies = [];
     for (let i = 0; i < n; i++) {
         enemies.push({
             x: 300 + i * 200 + Math.random() * 100,
-            y: 320,
+            y: getGroundY() - 25,
             width: 25,
             height: 25,
             velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3),
@@ -499,7 +510,10 @@ function gameLoop() {
     drawPlayer();
     scoreElement.textContent = gameState.score;
     drawLives(); // 하트 항상 그림
-    if (stageHintElement) stageHintElement.textContent = `힌트: ${stage.hint}`;
+    if (stageHintElement) {
+        stageHintElement.textContent = `힌트: ${stage.hint}`;
+        stageHintElement.style.display = 'block';
+    }
     checkStageClear();
     animationId = requestAnimationFrame(gameLoop);
 }
@@ -517,14 +531,14 @@ function updatePlayer() {
     // 방패(무적) 시간 처리
     // 방패 지속시간 관련 코드 완전 제거
     // shieldTime, SHIELD_DURATION, 관련 if문, 감소, 초기화 등 모두 삭제
-    // 사다리 충돌 체크
+    // 사다리 충돌 체크 (더 넓은 범위로 감지)
     onLadder = false;
     for (const lad of ladders) {
         if (
-            player.x + player.width > lad.x &&
-            player.x < lad.x + lad.width &&
-            player.y + player.height > lad.top &&
-            player.y < lad.bottom
+            player.x + player.width > lad.x - 10 &&
+            player.x < lad.x + lad.width + 10 &&
+            player.y + player.height > lad.top - 10 &&
+            player.y < lad.bottom + 10
         ) {
             onLadder = true;
             break;
@@ -545,9 +559,9 @@ function updatePlayer() {
     if (onLadder) {
         player.velocityY = 0;
         if (gameState.keys['arrowup'] || gameState.keys['w'] || gameState.keys['control']) {
-            player.y -= player.speed;
+            player.y -= player.speed * 1.5; // 사다리 타기 속도 증가
         } else if (gameState.keys['arrowdown'] || gameState.keys['s']) {
-            player.y += player.speed;
+            player.y += player.speed * 1.5; // 사다리 타기 속도 증가
         }
         // 사다리 꼭대기에서 플랫폼 위로 자동 착지
         for (const plat of platforms) {
@@ -564,7 +578,10 @@ function updatePlayer() {
     } else {
         // 점프(한 번만)
         if ((gameState.keys['arrowup'] || gameState.keys['w'] || gameState.keys['control']) && player.onGround && jumpPressed) {
-            player.velocityY = -player.jumpPower;
+            // 점프 높이 제한: 일정 높이 이상에서는 점프 파워 감소
+            let jumpPower = player.jumpPower;
+            if (player.y < getGroundY() - 200) jumpPower = Math.max(10, player.jumpPower - 3); // 높은 곳에서는 점프력 감소
+            player.velocityY = -jumpPower;
             player.onGround = false;
             jumpPressed = false;
         }
@@ -808,7 +825,7 @@ function drawBackground() {
     for (let i = 0; i < 12; i++) {
         let x = (150 + i * 200 - gameState.camera.x * 0.5) % gameState.worldWidth;
         if (x < 0) x += gameState.worldWidth;
-        let y = 320;
+        let y = getGroundY() - 40; // 바닥에 맞게 높이 조정
         if (x > gameState.camera.x - 50 && x < gameState.camera.x + canvas.width + 50) {
             ctx.save();
             ctx.fillStyle = '#8B5A2B';
@@ -821,7 +838,7 @@ function drawBackground() {
     for (let i = 0; i < 30; i++) {
         let x = (80 + i * 80 - gameState.camera.x * 0.7) % gameState.worldWidth;
         if (x < 0) x += gameState.worldWidth;
-        let y = 370;
+        let y = getGroundY() - 10; // 바닥에 맞게 높이 조정
         if (x > gameState.camera.x - 30 && x < gameState.camera.x + canvas.width + 30) {
             ctx.save();
             ctx.fillStyle = '#ffb703';
@@ -1010,7 +1027,7 @@ function showClearMessage() {
 // --- 플레이어 리스폰 ---
 function respawnPlayer() {
     player.x = 100;
-    player.y = platforms[0].y - player.height;
+    player.y = getGroundY() - player.height - 10;
     player.velocityX = 0;
     player.velocityY = 0;
     gameState.lives--;
@@ -1023,21 +1040,24 @@ function respawnPlayer() {
 
 // --- 게임 리셋 ---
 function resetGame() {
+    // 게임을 완전히 재시작
+    startStage(0);
     gameState.score = 0;
     gameState.lives = 3;
-    player.x = 100;
-    player.y = platforms[0].y - player.height;
-    player.velocityX = 0;
-    player.velocityY = 0;
     player.invulnerable = false;
     player.invulnerableTime = 0;
-    enemies.forEach(enemy => { enemy.alive = true; });
-    jamos.forEach(jamo => { jamo.collected = false; });
 }
 
 // --- 그리기 함수들 ---
 // drawPlayer: 연필 방향성 추가
 function drawPlayer() {
+    // 플레이어가 화면 밖에 있으면 그리지 않음
+    if (
+        player.x < -player.width ||
+        player.x > gameState.worldWidth ||
+        player.y < -player.height ||
+        player.y > canvas.height
+    ) return;
     ctx.save();
     ctx.translate(player.x - gameState.camera.x + player.width/2, player.y + player.height/2);
     // 무적 상태일 때 색상 반짝임 효과(방패X)
@@ -1151,8 +1171,12 @@ function drawPlayer() {
             ctx.restore();
         }
     }
-    // 몸통(연필) 이하 기존 drawPlayer 코드 유지
-    ctx.fillStyle = '#FFD966'; // 노란색
+    // 몸통(연필) - 고급 그라데이션 효과
+    const bodyGradient = ctx.createLinearGradient(-12, -15, 12, 15);
+    bodyGradient.addColorStop(0, '#FFD966');
+    bodyGradient.addColorStop(0.5, '#FFE066');
+    bodyGradient.addColorStop(1, '#FFC966');
+    ctx.fillStyle = bodyGradient;
     ctx.beginPath();
     ctx.moveTo(-10, -15); // 왼쪽 위
     ctx.lineTo(10, -15); // 오른쪽 위
@@ -1160,17 +1184,55 @@ function drawPlayer() {
     ctx.lineTo(-12, 15); // 왼쪽 아래
     ctx.closePath();
     ctx.fill();
-    // 연필심
-    ctx.fillStyle = '#444';
+    
+    // 연필 테두리
+    ctx.strokeStyle = '#E6C200';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // 연필 세로 줄무늬 (나무 질감 표현)
+    ctx.strokeStyle = 'rgba(230, 194, 0, 0.3)'; // 연한 노란색
+    ctx.lineWidth = 0.8;
+    for (let i = -8; i <= 8; i += 2) {
+        ctx.beginPath();
+        ctx.moveTo(i, -15);
+        ctx.lineTo(i, 15);
+        ctx.stroke();
+    }
+    
+    // 연필심 - 고급 효과
+    const tipGradient = ctx.createLinearGradient(-10, -25, 10, -15);
+    tipGradient.addColorStop(0, '#2c3e50');
+    tipGradient.addColorStop(0.5, '#34495e');
+    tipGradient.addColorStop(1, '#2c3e50');
+    ctx.fillStyle = tipGradient;
     ctx.beginPath();
     ctx.moveTo(-10, -15);
     ctx.lineTo(0, -25);
     ctx.lineTo(10, -15);
     ctx.closePath();
     ctx.fill();
-    // 연필 끝(분홍 지우개)
-    ctx.fillStyle = '#F8BBD0';
+    
+    // 연필심 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(-8, -15);
+    ctx.lineTo(0, -23);
+    ctx.lineTo(8, -15);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 연필 끝(지우개) - 고급 효과
+    const eraserGradient = ctx.createLinearGradient(-10, 15, 10, 21);
+    eraserGradient.addColorStop(0, '#F8BBD0');
+    eraserGradient.addColorStop(0.5, '#F48FB1');
+    eraserGradient.addColorStop(1, '#F06292');
+    ctx.fillStyle = eraserGradient;
     ctx.fillRect(-10, 15, 20, 6);
+    
+    // 지우개 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(-8, 16, 16, 2);
     // 사다리 타기 중이면 얼굴을 그리지 않고, 막대를 왼쪽으로 옮김
     if (onLadder) {
         // 막대(요술봉) 왼쪽
@@ -1183,26 +1245,95 @@ function drawPlayer() {
         ctx.beginPath(); ctx.arc(-28, -8, 5, 0, Math.PI*2); ctx.fill();
         ctx.restore();
     } else {
-        // 얼굴(눈, 입, 눈썹)
+        // 얼굴 - 고급 효과
+        // 눈 흰자
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(-4, -5, 2, 0, Math.PI*2); ctx.fill(); // 왼쪽 눈 흰자
-        ctx.beginPath(); ctx.arc(4, -5, 2, 0, Math.PI*2); ctx.fill(); // 오른쪽 눈 흰자
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.arc(-4, -5, 1, 0, Math.PI*2); ctx.fill(); // 왼쪽 눈동자
-        ctx.beginPath(); ctx.arc(4, -5, 1, 0, Math.PI*2); ctx.fill(); // 오른쪽 눈동자
-        ctx.strokeStyle = '#222';
+        ctx.beginPath(); 
+        ctx.arc(-4, -5, 2.5, 0, Math.PI*2); 
+        ctx.fill();
+        ctx.beginPath(); 
+        ctx.arc(4, -5, 2.5, 0, Math.PI*2); 
+        ctx.fill();
+        
+        // 눈 그림자
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath(); 
+        ctx.arc(-4, -4, 2.5, 0, Math.PI*2); 
+        ctx.fill();
+        ctx.beginPath(); 
+        ctx.arc(4, -4, 2.5, 0, Math.PI*2); 
+        ctx.fill();
+        
+        // 눈동자
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath(); 
+        ctx.arc(-4, -5, 1.2, 0, Math.PI*2); 
+        ctx.fill();
+        ctx.beginPath(); 
+        ctx.arc(4, -5, 1.2, 0, Math.PI*2); 
+        ctx.fill();
+        
+        // 눈동자 하이라이트
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.beginPath(); 
+        ctx.arc(-4.5, -5.5, 0.5, 0, Math.PI*2); 
+        ctx.fill();
+        ctx.beginPath(); 
+        ctx.arc(3.5, -5.5, 0.5, 0, Math.PI*2); 
+        ctx.fill();
+        
+        // 눈썹
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); 
+        ctx.moveTo(-6, -10); 
+        ctx.lineTo(-2, -8); 
+        ctx.stroke();
+        ctx.beginPath(); 
+        ctx.moveTo(2, -8); 
+        ctx.lineTo(6, -10); 
+        ctx.stroke();
+        
+        // 입
+        ctx.strokeStyle = '#e74c3c';
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(-2, -8); ctx.stroke(); // 왼쪽 눈썹 (↘)
-        ctx.beginPath(); ctx.moveTo(2, -8); ctx.lineTo(6, -10); ctx.stroke(); // 오른쪽 눈썹 (↗)
-        ctx.beginPath(); ctx.arc(0, 2, 3, 0, Math.PI, false); ctx.stroke(); // 입
-        ctx.strokeStyle = '#FFD966'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-18, 8); ctx.stroke();
-        // 팔(오른쪽) + 요술봉(막대) 블록 삭제 (중복)
+        ctx.beginPath(); 
+        ctx.arc(0, 2, 2.5, 0, Math.PI, false); 
+        ctx.stroke();
+        
+        // 팔
+        ctx.strokeStyle = '#FFD966'; 
+        ctx.lineWidth = 3;
+        ctx.beginPath(); 
+        ctx.moveTo(-12, 0); 
+        ctx.lineTo(-18, 8); 
+        ctx.stroke();
     }
-    // 다리
-    ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-6, 15); ctx.lineTo(-6, 23); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(6, 15); ctx.lineTo(6, 23); ctx.stroke();
+    // 다리 - 고급 효과
+    ctx.strokeStyle = '#8B4513';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); 
+    ctx.moveTo(-6, 15); 
+    ctx.lineTo(-6, 23); 
+    ctx.stroke();
+    ctx.beginPath(); 
+    ctx.moveTo(6, 15); 
+    ctx.lineTo(6, 23); 
+    ctx.stroke();
+    
+    // 다리 그림자
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); 
+    ctx.moveTo(-5, 16); 
+    ctx.lineTo(-5, 24); 
+    ctx.stroke();
+    ctx.beginPath(); 
+    ctx.moveTo(7, 16); 
+    ctx.lineTo(7, 24); 
+    ctx.stroke();
     ctx.restore();
     // 지팡이(요술봉) 애니메이션 블록 삭제 (중복)
     // 오른팔(오른쪽) 항상 그림
@@ -1216,7 +1347,7 @@ function drawPlayer() {
 function drawSyllableUI() {
     const text = composeHangul(gameState.collectedJamos);
     const centerX = canvas.width / 2;
-    const y = 38;
+    const y = 50;
     // 스케치북 배경
     ctx.save();
     ctx.globalAlpha = 0.92;
@@ -1252,58 +1383,154 @@ function drawEnemies() {
         ctx.save();
         ctx.translate(enemy.x - gameState.camera.x + enemy.width/2, enemy.y + enemy.height/2);
         const type = stage.index % 3;
-        if (type === 0) { // 로봇
-            // 몸통
-            ctx.fillStyle = '#888';
+        
+        if (type === 0) { // 로봇 - 고급 효과
+            // 몸통 그라데이션
+            const bodyGradient = ctx.createLinearGradient(-12, -2, 12, 22);
+            bodyGradient.addColorStop(0, '#666');
+            bodyGradient.addColorStop(0.5, '#888');
+            bodyGradient.addColorStop(1, '#666');
+            ctx.fillStyle = bodyGradient;
             ctx.fillRect(-12, -2, 24, 24);
-            // 머리
-            ctx.fillStyle = '#bbb';
+            
+            // 몸통 하이라이트
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(-10, 0, 20, 8);
+            
+            // 머리 그라데이션
+            const headGradient = ctx.createLinearGradient(-10, -16, 10, 0);
+            headGradient.addColorStop(0, '#aaa');
+            headGradient.addColorStop(0.5, '#ccc');
+            headGradient.addColorStop(1, '#aaa');
+            ctx.fillStyle = headGradient;
             ctx.fillRect(-10, -16, 20, 16);
-            // 눈(빨간 LED)
-            ctx.fillStyle = '#e22';
+            
+            // 눈(빨간 LED) - 글로우 효과
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ff3333';
             ctx.fillRect(-6, -10, 4, 4);
             ctx.fillRect(2, -10, 4, 4);
+            ctx.shadowBlur = 0;
+            
             // 입(격자)
             ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(-4, -2); ctx.lineTo(4, -2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(2, 0); ctx.stroke();
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); 
+            ctx.moveTo(-4, -2); 
+            ctx.lineTo(4, -2); 
+            ctx.stroke();
+            ctx.beginPath(); 
+            ctx.moveTo(-2, 0); 
+            ctx.lineTo(2, 0); 
+            ctx.stroke();
+            
             // 안테나
-            ctx.strokeStyle = '#888';
-            ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(0, -22); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, -22, 2, 0, Math.PI*2); ctx.fillStyle = '#e22'; ctx.fill();
-        } else if (type === 1) { // 해골
-            // 머리
-            ctx.fillStyle = '#eee';
-            ctx.beginPath(); ctx.arc(0, -4, 12, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); 
+            ctx.moveTo(0, -16); 
+            ctx.lineTo(0, -22); 
+            ctx.stroke();
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath(); 
+            ctx.arc(0, -22, 2, 0, Math.PI*2); 
+            ctx.fill();
+            
+        } else if (type === 1) { // 해골 - 고급 효과
+            // 머리 그라데이션
+            const skullGradient = ctx.createRadialGradient(0, -4, 0, 0, -4, 12);
+            skullGradient.addColorStop(0, '#fff');
+            skullGradient.addColorStop(0.7, '#eee');
+            skullGradient.addColorStop(1, '#ddd');
+            ctx.fillStyle = skullGradient;
+            ctx.beginPath(); 
+            ctx.arc(0, -4, 12, 0, Math.PI*2); 
+            ctx.fill();
+            
             // 턱
-            ctx.beginPath(); ctx.ellipse(0, 8, 10, 6, 0, 0, Math.PI, false); ctx.fill();
-            // 눈구멍
-            ctx.fillStyle = '#222';
-            ctx.beginPath(); ctx.ellipse(-5, -6, 3, 5, 0, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(5, -6, 3, 5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#eee';
+            ctx.beginPath(); 
+            ctx.ellipse(0, 8, 10, 6, 0, 0, Math.PI, false); 
+            ctx.fill();
+            
+            // 눈구멍 - 어둡게
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); 
+            ctx.ellipse(-5, -6, 3, 5, 0, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.beginPath(); 
+            ctx.ellipse(5, -6, 3, 5, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
             // 코구멍
-            ctx.beginPath(); ctx.ellipse(0, -2, 1.2, 2, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); 
+            ctx.ellipse(0, -2, 1.2, 2, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
             // 이빨
-            ctx.strokeStyle = '#222';
-            ctx.lineWidth = 1;
-            for (let i = -6; i <= 6; i += 3) {
-                ctx.beginPath(); ctx.moveTo(i, 10); ctx.lineTo(i, 14); ctx.stroke();
-            }
-            ctx.beginPath(); ctx.moveTo(-6, 14); ctx.lineTo(6, 14); ctx.stroke();
-        } else { // 외계인
-            // 머리
-            ctx.fillStyle = '#7fffd4';
-            ctx.beginPath(); ctx.ellipse(0, 0, 13, 18, 0, 0, Math.PI*2); ctx.fill();
-            // 눈(크고 검은 타원)
-            ctx.fillStyle = '#111';
-            ctx.beginPath(); ctx.ellipse(-5, -4, 4, 8, 0, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(5, -4, 4, 8, 0, 0, Math.PI*2); ctx.fill();
-            // 입(작고 얇게)
             ctx.strokeStyle = '#333';
             ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(0, 8, 4, 0, Math.PI, false); ctx.stroke();
+            for (let i = -6; i <= 6; i += 3) {
+                ctx.beginPath(); 
+                ctx.moveTo(i, 10); 
+                ctx.lineTo(i, 14); 
+                ctx.stroke();
+            }
+            ctx.beginPath(); 
+            ctx.moveTo(-6, 14); 
+            ctx.lineTo(6, 14); 
+            ctx.stroke();
+            
+        } else { // 외계인 - 고급 효과
+            // 머리 그라데이션
+            const alienGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+            alienGradient.addColorStop(0, '#7fffd4');
+            alienGradient.addColorStop(0.7, '#40e0d0');
+            alienGradient.addColorStop(1, '#20b2aa');
+            ctx.fillStyle = alienGradient;
+            ctx.beginPath(); 
+            ctx.ellipse(0, 0, 13, 18, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
+            // 머리 하이라이트
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath(); 
+            ctx.ellipse(-3, -8, 8, 6, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
+            // 눈(크고 검은 타원)
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); 
+            ctx.ellipse(-5, -4, 4, 8, 0, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.beginPath(); 
+            ctx.ellipse(5, -4, 4, 8, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
+            // 눈 하이라이트
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.beginPath(); 
+            ctx.ellipse(-6, -6, 1.5, 2, 0, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.beginPath(); 
+            ctx.ellipse(4, -6, 1.5, 2, 0, 0, Math.PI*2); 
+            ctx.fill();
+            
+            // 입(작고 얇게)
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); 
+            ctx.arc(0, 8, 4, 0, Math.PI, false); 
+            ctx.stroke();
         }
+        
+        // 그림자 효과
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI*2);
+        ctx.fill();
+        
         ctx.restore();
     });
 }
@@ -1336,18 +1563,49 @@ function drawJamos() {
 
 function drawPlatforms() {
     platforms.forEach(platform => {
-        if (platform.treeWall) {
-            // 나무 벽(세로 장애물)
-            ctx.save();
-            ctx.fillStyle = '#8B5A2B';
-            ctx.fillRect(platform.x - gameState.camera.x, platform.y, platform.width, platform.height);
-            ctx.fillStyle = '#228B22';
-            ctx.beginPath();
-            ctx.arc(platform.x - gameState.camera.x + platform.width/2, platform.y, platform.width*0.9, Math.PI, 2*Math.PI);
-            ctx.fill();
-            ctx.restore();
+        if (platform.isGround) {
+            // 바닥을 벽돌 3줄로 두껍게 그림
+            const tileW = 32, tileH = 20;
+            const tilesX = Math.floor(platform.width / tileW);
+            const rows = 3;
+            for (let row = 0; row < rows; row++) {
+                for (let tx = 0; tx < tilesX; tx++) {
+                    const x = platform.x - gameState.camera.x + tx * tileW;
+                    const y = platform.y + row * tileH;
+                    // 벽돌 그라데이션
+                    const brickGradient = ctx.createLinearGradient(x, y, x, y + tileH);
+                    brickGradient.addColorStop(0, '#c97a3a');
+                    brickGradient.addColorStop(0.5, '#d2691e');
+                    brickGradient.addColorStop(1, '#c97a3a');
+                    ctx.fillStyle = brickGradient;
+                    ctx.fillRect(x, y, tileW, tileH);
+                    // 벽돌 테두리
+                    ctx.strokeStyle = '#8b4513';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, tileW, tileH);
+                    // 벽돌 하이라이트
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fillRect(x + 2, y + 2, tileW - 4, 4);
+                    // 벽돌 중앙 점
+                    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                    ctx.beginPath();
+                    ctx.arc(x + tileW/2, y + tileH/2, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    // 벽돌 가로줄
+                    ctx.strokeStyle = '#e0a96d';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y + tileH/2);
+                    ctx.lineTo(x + tileW, y + tileH/2);
+                    ctx.stroke();
+                    // 벽돌 그림자
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    ctx.fillRect(x + 1, y + 1, tileW - 2, tileH - 2);
+                }
+            }
             return;
         }
+        // ... 나머지 플랫폼(중간, 공중)은 기존 코드 유지 ...
         const tileW = 32, tileH = 20;
         const tilesX = Math.floor(platform.width / tileW);
         const tilesY = Math.floor(platform.height / tileH);
@@ -1355,25 +1613,35 @@ function drawPlatforms() {
             for (let ty = 0; ty < tilesY; ty++) {
                 const x = platform.x - gameState.camera.x + tx * tileW;
                 const y = platform.y + ty * tileH;
-                // 벽돌 바탕
-                ctx.fillStyle = platform.broken ? '#b8860b' : '#c97a3a';
+                // 벽돌 그라데이션
+                const brickGradient = ctx.createLinearGradient(x, y, x, y + tileH);
+                brickGradient.addColorStop(0, platform.broken ? '#b8860b' : '#c97a3a');
+                brickGradient.addColorStop(0.5, platform.broken ? '#daa520' : '#d2691e');
+                brickGradient.addColorStop(1, platform.broken ? '#b8860b' : '#c97a3a');
+                ctx.fillStyle = brickGradient;
                 ctx.fillRect(x, y, tileW, tileH);
                 // 벽돌 테두리
                 ctx.strokeStyle = '#8b4513';
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, tileW, tileH);
+                // 벽돌 하이라이트
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(x + 2, y + 2, tileW - 4, 4);
                 // 벽돌 중앙 점
-                ctx.fillStyle = '#fff2';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
-                ctx.arc(x + tileW/2, y + tileH/2, 2.5, 0, Math.PI*2);
+                ctx.arc(x + tileW/2, y + tileH/2, 3, 0, Math.PI*2);
                 ctx.fill();
                 // 벽돌 가로줄
                 ctx.strokeStyle = '#e0a96d';
-                ctx.lineWidth = 1;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(x, y + tileH/2);
                 ctx.lineTo(x + tileW, y + tileH/2);
                 ctx.stroke();
+                // 벽돌 그림자
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.fillRect(x + 1, y + 1, tileW - 2, tileH - 2);
             }
         }
     });
@@ -1457,7 +1725,7 @@ function updateTreasureChest() {
         player.invulnerable = true;
         player.invulnerableTime = 120;
         if (typeof playSound === 'function') playSound('collect');
-        showTempMessage('방패 획득! 일정 시간 무적', 1200);
+                    showTempMessage('📓 방패 획득!', 1200);
     }
 } 
 
@@ -1466,13 +1734,43 @@ function setupMobileControls() {
     const btnLeft = document.getElementById('btnLeft');
     const btnRight = document.getElementById('btnRight');
     const btnJump = document.getElementById('btnJump');
+    const btnAttack = document.getElementById('btnAttack');
+    
     if (!btnLeft || !btnRight || !btnJump) return;
+    
+    // 왼쪽 버튼
     btnLeft.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['arrowleft'] = true; });
     btnLeft.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['arrowleft'] = false; });
+    btnLeft.addEventListener('touchcancel', e => { e.preventDefault(); gameState.keys['arrowleft'] = false; });
+    
+    // 오른쪽 버튼
     btnRight.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['arrowright'] = true; });
     btnRight.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['arrowright'] = false; });
+    btnRight.addEventListener('touchcancel', e => { e.preventDefault(); gameState.keys['arrowright'] = false; });
+    
+    // 점프 버튼
     btnJump.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['w'] = true; });
     btnJump.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['w'] = false; });
+    btnJump.addEventListener('touchcancel', e => { e.preventDefault(); gameState.keys['w'] = false; });
+    
+    // 공격 버튼
+    if (btnAttack) {
+        btnAttack.addEventListener('touchstart', e => { 
+            e.preventDefault(); 
+            if (player.attackCooldown <= 0) {
+                player.isAttacking = true;
+                player.attackTimer = 10;
+                player.attackCooldown = 30;
+            }
+        });
+    }
+    
+    // 모바일에서 스크롤 방지
+    document.addEventListener('touchmove', e => {
+        if (e.target.closest('#gameContainer')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 window.addEventListener('DOMContentLoaded', setupMobileControls);
 
@@ -1525,24 +1823,23 @@ function startStage(idx) {
     stage.hint = stageData.hint;
     stage.jamos = splitHangul(stage.word);
     platforms = generatePlatforms(idx);
-    // enemies는 아래에서 리젠
     spawnEnemies(idx, 0);
     spawnJamos();
     gameState.collectedJamos = [];
     player.x = 100;
-    player.y = platforms[0].y - player.height;
+    player.y = getGroundY() - player.height - 10;
     player.velocityX = 0;
     player.velocityY = 0;
     player.invulnerable = false;
     player.invulnerableTime = 0;
-    // 보물상자: 항상 x=600, 가장 가까운 플랫폼 위에 고정
-    let plat = platforms.reduce((acc, p) => (Math.abs(p.x-600)<Math.abs(acc.x-600)?p:acc), platforms[0]);
-    treasureChest = { x: 600, y: plat.y-32, width: 32, height: 32, opened: false };
+    // 보물상자: 항상 x=600, 바닥 위에 고정
+    treasureChest = { x: 600, y: getGroundY() - 32, width: 32, height: 32, opened: false };
     // 디버깅 출력
     console.log('플랫폼:', platforms);
     console.log('플레이어:', player);
     console.log('적:', enemies);
     stageHintElement.textContent = `힌트: ${stage.hint}`;
+    stageHintElement.style.display = 'block';
     updateSketchbook();
 } 
 
@@ -1619,3 +1916,39 @@ window.addEventListener('DOMContentLoaded', () => {
     // 게임 루프 시작
     gameLoop();
 });
+
+// --- 스케치북 UI ---
+function drawSketchbook() {
+    const jamos = gameState.collectedJamos;
+    const centerX = canvas.width / 2;
+    const y = 50;
+    // 스케치북 배경
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#bbb';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.roundRect(centerX - 90, y - 28, 180, 56, 18);
+    ctx.fill();
+    ctx.stroke();
+    // 스프링
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+        ctx.beginPath();
+        ctx.arc(centerX - 60 + i*20, y - 28, 6, Math.PI, 0);
+        ctx.stroke();
+    }
+    // 글자
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 28px "Nanum Pen Script", "Comic Sans MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(jamos.join(' '), centerX, y);
+    ctx.restore();
+}
+
+// ... 기존 gameLoop 내 drawLives(); 아래에 추가 ...
+drawSketchbook();

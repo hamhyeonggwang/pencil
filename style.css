@@ -1,37 +1,222 @@
 body {
     margin: 0;
     padding: 0;
-    background: linear-gradient(to bottom, #87CEEB, #98FB98);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: 'Courier New', monospace;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* 모바일 반응형 디자인 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+        min-height: 100vh;
+        align-items: flex-start;
+    }
+    
+    #gameContainer {
+        width: 100%;
+        max-width: 100vw;
+        height: auto;
+        border: 2px solid #333;
+        border-radius: 8px;
+    }
+    
+    #gameCanvas {
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+    }
+    
+    #gameInfo {
+        font-size: 16px;
+        top: 5px;
+        left: 5px;
+    }
+    
+    #controls {
+        font-size: 12px;
+        bottom: -40px;
+    }
+    
+    #stageHint {
+        font-size: 16px;
+        padding: 6px 16px;
+        top: -30px;
+        max-width: 95vw;
+    }
+    
+    #mobileControls {
+        bottom: 10px;
+        right: 10px;
+        gap: 16px;
+    }
+    
+    .key-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5em;
+    }
+    
+    #btnAttack {
+        bottom: 10px;
+        left: 10px;
+        width: 48px;
+        height: 48px;
+        font-size: 1.5em;
+    }
+    
+    /* 스케치북 모바일 최적화 */
+    #sketchbook {
+        top: 10px !important;
+        z-index: 1000 !important;
+        min-width: 120px !important;
+        font-size: 13px !important;
+    }
+    
+    #collectedJamos {
+        font-size: 16px !important;
+        min-height: 20px !important;
+    }
+    
+    /* 단어 관리 UI 모바일 최적화 */
+    #wordInputUI {
+        top: 5px !important;
+        left: 5px !important;
+        right: 5px !important;
+        width: auto !important;
+        max-width: calc(100vw - 10px) !important;
+    }
+    
+    #wordListUI {
+        top: 40px !important;
+        right: 5px !important;
+        left: 5px !important;
+        width: auto !important;
+        max-width: calc(100vw - 10px) !important;
+        max-height: 50vh !important;
+    }
+    
+    /* 단어 관리 버튼 모바일 최적화 */
+    #manageWordsBtn, #addWordBtn {
+        font-size: 12px !important;
+        padding: 6px 12px !important;
+    }
+    
+    #manageWordsBtn {
+        right: 5px !important;
+    }
+    
+    #addWordBtn {
+        right: 80px !important;
+    }
 }
 
 #gameContainer {
     position: relative;
-    border: 3px solid #333;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    background: #87CEEB;
+    border: none;
+    border-radius: 20px;
+    box-shadow: 
+        0 20px 40px rgba(0,0,0,0.3),
+        0 0 0 1px rgba(255,255,255,0.1) inset,
+        0 0 0 1px rgba(0,0,0,0.1);
+    background: linear-gradient(145deg, #f0f8ff, #e6f3ff);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    width: 1120px;
+    min-width: 900px;
+    max-width: 98vw;
+    height: 680px;
+    min-height: 650px;
+    max-height: 98vh;
+    padding-top: 40px;
+}
+
+#gameContainer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
 }
 
 #gameCanvas {
     display: block;
-    background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 70%, #90EE90 70%, #90EE90 100%);
+    background: linear-gradient(180deg, 
+        #87CEEB 0%, 
+        #87CEEB 40%, 
+        #98FB98 40%, 
+        #98FB98 70%, 
+        #90EE90 70%, 
+        #90EE90 100%);
+    border-radius: 20px;
+    position: relative;
+    z-index: 2;
+    width: 1100px;
+    height: 600px;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+@media (max-width: 1200px) {
+    #gameContainer {
+        width: 100vw;
+        min-width: 0;
+        height: auto;
+        min-height: 0;
+        max-width: 100vw;
+        max-height: 100vh;
+    }
+    #gameCanvas {
+        width: 100vw;
+        height: auto;
+        max-width: 100vw;
+        max-height: 60vh;
+    }
+    #sketchbook {
+        min-width: 120px !important;
+        font-size: 13px !important;
+        top: -60px !important;
+    }
 }
 
 #gameInfo {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    font-size: 20px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    top: 15px;
+    left: 15px;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
     z-index: 10;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 #controls {
@@ -45,23 +230,8 @@ body {
 }
 
 #stageHint {
-    position: absolute;
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #222;
-    font-size: 22px;
-    font-weight: bold;
-    background: rgba(255,255,255,0.8);
-    padding: 8px 24px;
-    border-radius: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    z-index: 20;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 90vw;
-    min-width: 0;
+    /* 힌트는 이제 HTML에서 인라인 스타일로 처리됨 */
+    display: none; /* 기본적으로 숨김, 게임에서 필요시 표시 */
 }
 
 #mobileControls {
@@ -120,22 +290,51 @@ body {
 }
 
 .key-btn {
-    background: #fff8;
-    border: 2px solid #bbb;
-    color: #333;
-    font-weight: bold;
+    background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+    border: none;
+    color: #2c3e50;
+    font-weight: 600;
     margin: 0 4px;
-    transition: background 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 8px #2222;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 4px 12px rgba(0,0,0,0.15),
+        0 0 0 1px rgba(255,255,255,0.2) inset;
     outline: none;
     cursor: pointer;
+    backdrop-filter: blur(5px);
+    border-radius: 12px;
 }
+
 .key-btn:active {
-    background: #e0e0e0;
-    box-shadow: 0 1px 2px #2224;
+    background: linear-gradient(145deg, rgba(255,255,255,0.7), rgba(255,255,255,0.5));
+    transform: translateY(2px);
+    box-shadow: 
+        0 2px 6px rgba(0,0,0,0.2),
+        0 0 0 1px rgba(255,255,255,0.1) inset;
+}
+
+.key-btn:hover {
+    background: linear-gradient(145deg, rgba(255,255,255,1), rgba(255,255,255,0.9));
+    box-shadow: 
+        0 6px 16px rgba(0,0,0,0.2),
+        0 0 0 1px rgba(255,255,255,0.3) inset;
 }
 
 @keyframes float {
     0% { transform: translateX(-100px); }
     100% { transform: translateX(900px); }
+} 
+
+#sketchbook {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.95);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    min-width: 200px;
+    text-align: center;
 } 
