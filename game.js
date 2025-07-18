@@ -1555,7 +1555,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const manageWordsBtn = document.getElementById('manageWordsBtn');
     const addWordBtn = document.getElementById('addWordBtn');
     const wordInputUI = document.getElementById('wordInputUI');
-    const addWordBtnInUI = document.getElementById('addWordBtn');
+    const addWordBtnInUI = document.getElementById('addWordBtnInUI');
     const closeWordInputBtn = document.getElementById('closeWordInputBtn');
     const wordInput = document.getElementById('wordInput');
     const hintInput = document.getElementById('hintInput');
@@ -1606,13 +1606,13 @@ window.addEventListener('DOMContentLoaded', () => {
     // Enter 키로 단어 추가
     wordInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            addWordBtn.click();
+            addWordBtnInUI.click();
         }
     });
     
     hintInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            addWordBtn.click();
+            addWordBtnInUI.click();
         }
     });
     
