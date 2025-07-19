@@ -706,6 +706,8 @@ function updatePlayer() {
     if (player.attackCooldown > 0) {
         player.attackCooldown--;
     }
+
+    
     // 공격 히트박스
     if (player.isAttacking) {
         const attackRange = 18; // 짧은 거리
@@ -959,20 +961,35 @@ function updateEnemies() {
             }
         }
         
-        // 플레이어와 충돌 검사
+        // 플레이어와 충돌 검사 (밟기 공격이 우선)
         if (checkCollision(player, enemy) && !player.invulnerable) {
-            if (shieldActive) {
-                shieldActive = false;
-                showTempMessage('방패가 깨졌습니다!', 1000);
+            // 플레이어가 몬스터 위에 있는지 확인 (밟기 공격)
+            const isOnTop = player.y + player.height <= enemy.y + 10 && 
+                           player.y + player.height >= enemy.y - 5 &&
+                           player.x + player.width > enemy.x + 5 &&
+                           player.x < enemy.x + enemy.width - 5;
+            
+            if (isOnTop && player.velocityY > 0) {
+                // 밟기 공격 성공
+                enemy.alive = false;
+                gameState.score += 300;
+                player.velocityY = -8; // 밟은 후 튀어오름
+                if (typeof playSound === 'function') playSound('stomp');
             } else {
-                gameState.lives--;
-            }
-            player.invulnerable = true;
-            player.invulnerableTime = 120;
-            player.velocityX = -player.direction * 10;
-            player.velocityY = -8;
-            if (gameState.lives <= 0) {
-                resetGame();
+                // 일반 충돌 (데미지)
+                if (shieldActive) {
+                    shieldActive = false;
+                    showTempMessage('방패가 깨졌습니다!', 1000);
+                } else {
+                    gameState.lives--;
+                }
+                player.invulnerable = true;
+                player.invulnerableTime = 120;
+                player.velocityX = -player.direction * 10;
+                player.velocityY = -8;
+                if (gameState.lives <= 0) {
+                    resetGame();
+                }
             }
         }
     });
