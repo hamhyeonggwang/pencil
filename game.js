@@ -21,6 +21,10 @@ const maxStage = 5; // 5단계
 let shieldActive = false; // 방패 상태
 let treasureChest = null; // 보물상자
 
+// 웹 환경 감지 및 속도 조정
+const isWebEnvironment = typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:';
+const speedMultiplier = isWebEnvironment ? 0.7 : 1; // 웹에서는 30% 느리게
+
 // 플레이어 객체
 let player = {
     x: 100,
@@ -29,8 +33,8 @@ let player = {
     height: 30,
     velocityX: 0,
     velocityY: 0,
-    speed: 5, // 원래 속도로 복원
-    jumpPower: 15, // 원래 점프력으로 복원
+    speed: 5 * speedMultiplier, // 웹 환경에 따라 속도 조정
+    jumpPower: 15 * speedMultiplier, // 웹 환경에 따라 점프력 조정
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
@@ -65,12 +69,12 @@ let platforms = [
 
 // 적들
 let enemies = [
-    { x: 300, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 500, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
-    { x: 700, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 1100, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true },
-    { x: 1500, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1, direction: -1, alive: true },
-    { x: 1900, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1, direction: 1, alive: true }
+    { x: 300, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1 * speedMultiplier, direction: -1, alive: true },
+    { x: 500, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1 * speedMultiplier, direction: 1, alive: true },
+    { x: 700, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1 * speedMultiplier, direction: -1, alive: true },
+    { x: 1100, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1 * speedMultiplier, direction: 1, alive: true },
+    { x: 1500, y: getGroundY() - 25, width: 25, height: 25, velocityX: -1 * speedMultiplier, direction: -1, alive: true },
+    { x: 1900, y: getGroundY() - 25, width: 25, height: 25, velocityX: 1 * speedMultiplier, direction: 1, alive: true }
 ];
 
 // 한글 자음/모음 전체 소스
@@ -406,7 +410,7 @@ function spawnEnemies(stageIdx, repeatCount) {
             y: baseY,
             width: 25,
             height: 25,
-            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3), // 원래 속도로 복원
+            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3) * speedMultiplier, // 웹 환경에 따라 속도 조정
             direction: Math.random() > 0.5 ? 1 : -1,
             alive: true,
             type: enemyType,
@@ -596,9 +600,9 @@ function updatePlayer() {
     if (onLadder) {
         player.velocityY = 0;
         if (gameState.keys['arrowup'] || gameState.keys['w'] || gameState.keys['control']) {
-            player.y -= player.speed * 1.5; // 사다리 타기 속도 증가
+            player.y -= player.speed * 1.5 * speedMultiplier; // 사다리 타기 속도 조정
         } else if (gameState.keys['arrowdown'] || gameState.keys['s']) {
-            player.y += player.speed * 1.5; // 사다리 타기 속도 증가
+            player.y += player.speed * 1.5 * speedMultiplier; // 사다리 타기 속도 조정
         }
         // 사다리 꼭대기에서 플랫폼 위로 자동 착지
         for (const plat of platforms) {
@@ -623,8 +627,8 @@ function updatePlayer() {
             jumpPressed = false;
         }
         // 중력 적용
-        player.velocityY += 0.8;
-        if (player.velocityY > 15) player.velocityY = 15;
+        player.velocityY += 0.8 * speedMultiplier;
+        if (player.velocityY > 15 * speedMultiplier) player.velocityY = 15 * speedMultiplier;
     }
     // 위치 업데이트
     player.x += player.velocityX;
