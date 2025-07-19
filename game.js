@@ -34,7 +34,7 @@ let player = {
     velocityX: 0,
     velocityY: 0,
     speed: 5 * speedMultiplier, // 웹 환경에 따라 속도 조정
-    jumpPower: 15 * speedMultiplier, // 웹 환경에 따라 점프력 조정
+    jumpPower: 15, // 점프력은 원래대로 유지 (웹/로컬 동일)
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
