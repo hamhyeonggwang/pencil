@@ -20,11 +20,19 @@ let wordRepeatCount = 0;
 const maxStage = 5; // 5단계
 let shieldActive = false; // 방패 상태
 let treasureChest = null; // 보물상자
+let items = []; // 아이템 배열
 
 // 속도 설정 변수들
 let speedMultiplier = 1;
 let jumpMultiplier = 1;
 let enemySpeedMultiplier = 1;
+
+// 아이템 시스템
+let activeItems = [];
+let itemEffects = {
+    ruler: { active: false, timer: 0, duration: 6000 }, // 100초 = 6000프레임 (60fps 기준)
+    magnet: { active: false, timer: 0, duration: 3600 } // 60초 = 3600프레임
+};
 
 // 플레이어 객체
 let player = {
@@ -339,6 +347,7 @@ function startStage(idx) {
     platforms = generatePlatforms(idx);
     spawnEnemies(idx, 0);
     spawnJamos();
+    spawnItems();
     gameState.collectedJamos = [];
     player.x = 100;
     player.y = getGroundY() - player.height - 10;
@@ -374,9 +383,50 @@ function spawnJamos() {
     });
 }
 
+// 아이템 생성 함수
+function spawnItems() {
+    items = [];
+    const platformCount = platforms.length;
+    
+    // 자 아이템 (플랫폼 중간에 배치)
+    const rulerPlatform = platforms[Math.floor(platformCount / 3)];
+    items.push({
+        x: rulerPlatform.x + rulerPlatform.width / 2 - 15,
+        y: rulerPlatform.y - 30,
+        width: 30,
+        height: 30,
+        type: 'ruler',
+        collected: false
+    });
+    
+    // 막대자석 아이템 (플랫폼 끝쪽에 배치)
+    const magnetPlatform = platforms[Math.floor(platformCount * 2 / 3)];
+    items.push({
+        x: magnetPlatform.x + magnetPlatform.width / 2 - 15,
+        y: magnetPlatform.y - 30,
+        width: 30,
+        height: 30,
+        type: 'magnet',
+        collected: false
+    });
+}
+
 // updateJamos 함수 - 자모 수집 처리
 function updateJamos() {
     jamos.forEach((jamo, idx) => {
+        // 막대자석 효과: 자모를 플레이어 쪽으로 끌어당김
+        if (itemEffects.magnet.active && !jamo.collected) {
+            const dx = player.x - jamo.x;
+            const dy = player.y - jamo.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0 && distance < 200) { // 200px 반경 내에서
+                const speed = 2;
+                jamo.x += (dx / distance) * speed;
+                jamo.y += (dy / distance) * speed;
+            }
+        }
+        
         if (!jamo.collected && checkCollision(player, jamo)) {
             // 순서 체크: 다음으로 획득해야 할 자음/모음만 가능
             if (idx === gameState.collectedJamos.length) {
@@ -389,6 +439,54 @@ function updateJamos() {
                 // 순서가 아니면 안내 메시지
                 const nextJamo = jamos[gameState.collectedJamos.length]?.char || '';
                 showTempMessage(`순서대로 획득하세요! (다음: ${nextJamo})`, 1000);
+            }
+        }
+    });
+}
+
+// 아이템 업데이트 함수
+function updateItems() {
+    items.forEach(item => {
+        if (!item.collected && checkCollision(player, item)) {
+            item.collected = true;
+            gameState.score += 500;
+            
+            if (item.type === 'ruler') {
+                // 자 아이템 효과: 크기 50% 증가, 점프력 10% 증가
+                itemEffects.ruler.active = true;
+                itemEffects.ruler.timer = itemEffects.ruler.duration;
+                player.width = 45; // 30 * 1.5
+                player.height = 45;
+                player.jumpPower = 15.84; // 14.4 * 1.1
+                showTempMessage('자 획득! 크기와 점프력이 증가했습니다!', 3000);
+            } else if (item.type === 'magnet') {
+                // 막대자석 아이템 효과: 자기장 생성
+                itemEffects.magnet.active = true;
+                itemEffects.magnet.timer = itemEffects.magnet.duration;
+                showTempMessage('막대자석 획득! 자모를 끌어당깁니다!', 3000);
+            }
+            
+            if (typeof playSound === 'function') playSound('collect');
+        }
+    });
+    
+    // 아이템 효과 타이머 업데이트
+    Object.keys(itemEffects).forEach(key => {
+        if (itemEffects[key].active) {
+            itemEffects[key].timer--;
+            if (itemEffects[key].timer <= 0) {
+                itemEffects[key].active = false;
+                
+                if (key === 'ruler') {
+                    // 자 효과 종료
+                    player.width = 30;
+                    player.height = 30;
+                    player.jumpPower = 14.4;
+                    showTempMessage('자 효과가 끝났습니다.', 2000);
+                } else if (key === 'magnet') {
+                    // 막대자석 효과 종료
+                    showTempMessage('막대자석 효과가 끝났습니다.', 2000);
+                }
             }
         }
     });
@@ -624,10 +722,12 @@ function gameLoop() {
     updatePlayer();
     updateEnemies();
     updateJamos();
+    updateItems();
     updateTreasureChest();
     drawPlatforms();
     drawLadders();
     drawJamos();
+    drawItems();
     drawEnemies();
     drawTreasureChest();
     drawPlayer();
@@ -2091,6 +2191,64 @@ function drawJamos() {
         }
         
         ctx.restore();
+    });
+}
+
+// 아이템 렌더링 함수
+function drawItems() {
+    items.forEach(item => {
+        if (!item.collected) {
+            ctx.save();
+            
+            if (item.type === 'ruler') {
+                // 자 아이템 렌더링
+                ctx.fillStyle = '#4CAF50';
+                ctx.strokeStyle = '#2E7D32';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(item.x - gameState.camera.x, item.y - gameState.camera.y, item.width, item.height, 6);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 자 모양 그리기
+                ctx.fillStyle = '#2E7D32';
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 8, 20, 3);
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 15, 20, 3);
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 22, 20, 3);
+                
+                // 글자
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('자', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
+                
+            } else if (item.type === 'magnet') {
+                // 막대자석 아이템 렌더링
+                ctx.fillStyle = '#2196F3';
+                ctx.strokeStyle = '#1976D2';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(item.x - gameState.camera.x, item.y - gameState.camera.y, item.width, item.height, 6);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 자석 모양 그리기
+                ctx.fillStyle = '#1976D2';
+                ctx.fillRect(item.x - gameState.camera.x + 8, item.y - gameState.camera.y + 5, 14, 20);
+                ctx.fillStyle = '#FF5722';
+                ctx.fillRect(item.x - gameState.camera.x + 10, item.y - gameState.camera.y + 7, 10, 16);
+                
+                // 글자
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('자석', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
+            }
+            
+            ctx.restore();
+        }
     });
 }
 
