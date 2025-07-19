@@ -826,20 +826,7 @@ document.addEventListener('keyup', (e) => {
         jumpPressed = false;
     }
 });
-// 모바일 점프 버튼도 동일하게 처리
-const btnJump = document.getElementById('btnJump');
-if (btnJump) {
-    btnJump.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (!jumpPressed) {
-            jumpPressed = true;
-        }
-    });
-    btnJump.addEventListener('touchend', e => {
-        e.preventDefault();
-        jumpPressed = false;
-    });
-}
+
 
 // --- 공격 입력 처리 (키보드/모바일) ---
 document.addEventListener('keydown', (e) => {
@@ -2332,9 +2319,20 @@ function setupMobileControls() {
     btnRight.addEventListener('touchcancel', e => { e.preventDefault(); gameState.keys['arrowright'] = false; });
     
     // 점프 버튼
-    btnJump.addEventListener('touchstart', e => { e.preventDefault(); gameState.keys['w'] = true; });
-    btnJump.addEventListener('touchend', e => { e.preventDefault(); gameState.keys['w'] = false; });
-    btnJump.addEventListener('touchcancel', e => { e.preventDefault(); gameState.keys['w'] = false; });
+    btnJump.addEventListener('touchstart', e => { 
+        e.preventDefault(); 
+        if (!jumpPressed) {
+            jumpPressed = true;
+        }
+    });
+    btnJump.addEventListener('touchend', e => { 
+        e.preventDefault(); 
+        jumpPressed = false; 
+    });
+    btnJump.addEventListener('touchcancel', e => { 
+        e.preventDefault(); 
+        jumpPressed = false; 
+    });
     
     // 공격 버튼
     if (btnAttack) {
