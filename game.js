@@ -30,7 +30,7 @@ let player = {
     velocityX: 0,
     velocityY: 0,
     speed: 5, // 원래 속도로 복원
-    jumpPower: 10, // 점프력 조정 (낮은 구조물 올라갈 정도)
+    jumpPower: 12, // 점프력 조정
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
