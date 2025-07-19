@@ -21,6 +21,11 @@ const maxStage = 5; // 5단계
 let shieldActive = false; // 방패 상태
 let treasureChest = null; // 보물상자
 
+// 속도 설정 변수들
+let speedMultiplier = 1;
+let jumpMultiplier = 1;
+let enemySpeedMultiplier = 1;
+
 // 플레이어 객체
 let player = {
     x: 100,
@@ -29,8 +34,8 @@ let player = {
     height: 30,
     velocityX: 0,
     velocityY: 0,
-    speed: 5, // 원래 속도로 복원
-    jumpPower: 12, // 점프력 조정
+    speed: 5, // 기본 속도
+    jumpPower: 12, // 기본 점프력
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
@@ -406,7 +411,7 @@ function spawnEnemies(stageIdx, repeatCount) {
             y: baseY,
             width: 25,
             height: 25,
-            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3), // 원래 속도로 복원
+            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3) * enemySpeedMultiplier, // 속도 설정 적용
             direction: Math.random() > 0.5 ? 1 : -1,
             alive: true,
             type: enemyType,
@@ -522,6 +527,87 @@ function startGame() {
 }
 
 startText.addEventListener('click', startGame);
+
+// 속도 설정 UI 이벤트 핸들러
+function setupSpeedSettings() {
+    const speedSettingsBtn = document.getElementById('speedSettingsBtn');
+    const speedSettingsUI = document.getElementById('speedSettingsUI');
+    const closeSpeedSettingsBtn = document.getElementById('closeSpeedSettingsBtn');
+    const speedSlider = document.getElementById('speedSlider');
+    const jumpSlider = document.getElementById('jumpSlider');
+    const enemySpeedSlider = document.getElementById('enemySpeedSlider');
+    const speedValue = document.getElementById('speedValue');
+    const jumpValue = document.getElementById('jumpValue');
+    const enemySpeedValue = document.getElementById('enemySpeedValue');
+    const resetSpeedBtn = document.getElementById('resetSpeedBtn');
+
+    // 속도 설정 버튼 클릭
+    speedSettingsBtn.addEventListener('click', () => {
+        speedSettingsUI.style.display = 'block';
+        wordListUI.style.display = 'none';
+        wordInputUI.style.display = 'none';
+    });
+
+    // 닫기 버튼 클릭
+    closeSpeedSettingsBtn.addEventListener('click', () => {
+        speedSettingsUI.style.display = 'none';
+    });
+
+    // 이동 속도 슬라이더
+    speedSlider.addEventListener('input', (e) => {
+        speedMultiplier = e.target.value / 100;
+        speedValue.textContent = e.target.value;
+        player.speed = 5 * speedMultiplier;
+    });
+
+    // 점프 높이 슬라이더
+    jumpSlider.addEventListener('input', (e) => {
+        jumpMultiplier = e.target.value / 100;
+        jumpValue.textContent = e.target.value;
+        player.jumpPower = 12 * jumpMultiplier;
+    });
+
+    // 적 속도 슬라이더
+    enemySpeedSlider.addEventListener('input', (e) => {
+        enemySpeedMultiplier = e.target.value / 100;
+        enemySpeedValue.textContent = e.target.value;
+        // 기존 적들의 속도 업데이트
+        enemies.forEach(enemy => {
+            if (enemy.velocityX > 0) {
+                enemy.velocityX = 1 * enemySpeedMultiplier;
+            } else if (enemy.velocityX < 0) {
+                enemy.velocityX = -1 * enemySpeedMultiplier;
+            }
+        });
+    });
+
+    // 초기화 버튼
+    resetSpeedBtn.addEventListener('click', () => {
+        speedSlider.value = 100;
+        jumpSlider.value = 100;
+        enemySpeedSlider.value = 100;
+        speedMultiplier = 1;
+        jumpMultiplier = 1;
+        enemySpeedMultiplier = 1;
+        player.speed = 5;
+        player.jumpPower = 12;
+        speedValue.textContent = '100';
+        jumpValue.textContent = '100';
+        enemySpeedValue.textContent = '100';
+        
+        // 적들 속도 초기화
+        enemies.forEach(enemy => {
+            if (enemy.velocityX > 0) {
+                enemy.velocityX = 1;
+            } else if (enemy.velocityX < 0) {
+                enemy.velocityX = -1;
+            }
+        });
+    });
+}
+
+// 속도 설정 초기화
+setupSpeedSettings();
 
 function gameLoop() {
     

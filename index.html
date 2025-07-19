@@ -34,12 +34,34 @@
         <!-- 단어 관리 버튼 -->
         <button id="manageWordsBtn" style="position:absolute;top:10px;right:10px;z-index:150;background:#2196F3;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">단어 목록</button>
         <button id="addWordBtn" style="position:absolute;top:10px;right:120px;z-index:150;background:#4CAF50;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">단어 추가</button>
+        <button id="speedSettingsBtn" style="position:absolute;top:10px;right:230px;z-index:150;background:#FF9800;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:14px;">속도 설정</button>
         
         <!-- 단어 목록 UI -->
         <div id="wordListUI" style="position:absolute;top:50px;right:10px;z-index:200;background:rgba(255,255,255,0.95);padding:15px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.3);max-width:300px;max-height:400px;overflow-y:auto;display:none;">
             <h3 style="margin:0 0 10px 0;color:#333;">단어 목록</h3>
             <div id="wordList" style="margin-bottom:10px;"></div>
             <button id="closeWordListBtn" style="background:#f44336;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">닫기</button>
+        </div>
+        
+        <!-- 속도 설정 UI -->
+        <div id="speedSettingsUI" style="position:absolute;top:50px;right:10px;z-index:200;background:rgba(255,255,255,0.95);padding:15px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.3);width:280px;display:none;">
+            <h3 style="margin:0 0 15px 0;color:#333;">속도 설정</h3>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;color:#333;font-weight:bold;">이동 속도: <span id="speedValue">100</span>%</label>
+                <input type="range" id="speedSlider" min="50" max="150" value="100" style="width:100%;height:8px;border-radius:4px;background:#ddd;outline:none;">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;color:#333;font-weight:bold;">점프 높이: <span id="jumpValue">100</span>%</label>
+                <input type="range" id="jumpSlider" min="50" max="150" value="100" style="width:100%;height:8px;border-radius:4px;background:#ddd;outline:none;">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:8px;color:#333;font-weight:bold;">적 속도: <span id="enemySpeedValue">100</span>%</label>
+                <input type="range" id="enemySpeedSlider" min="50" max="150" value="100" style="width:100%;height:8px;border-radius:4px;background:#ddd;outline:none;">
+            </div>
+            <div style="text-align:center;">
+                <button id="resetSpeedBtn" style="background:#9E9E9E;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:5px;">초기화</button>
+                <button id="closeSpeedSettingsBtn" style="background:#f44336;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">닫기</button>
+            </div>
         </div>
         <!-- 스케치북 UI -->
         <div id="sketchbook" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.95);padding:10px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.2);z-index:1000;min-width:200px;text-align:center;">
