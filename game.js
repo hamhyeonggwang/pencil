@@ -2,7 +2,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 const livesElement = document.getElementById('lives');
-const syllableElement = document.getElementById('syllable');
+// syllableElement 참조 제거 - HTML에 해당 요소가 없음
+
 // 게임 상태
 let gameState = {
     score: 0,
@@ -12,6 +13,13 @@ let gameState = {
     worldWidth: 2400,
     collectedJamos: [] // 자음/모음 수집용
 };
+
+// 전역 변수들
+let jamos = []; // 자모 배열 전역 선언
+let wordRepeatCount = 0;
+const maxStage = 5; // 5단계
+let shieldActive = false; // 방패 상태
+let treasureChest = null; // 보물상자
 
 // 플레이어 객체
 let player = {
@@ -244,7 +252,22 @@ function generatePlatforms(stageIdx) {
                 
                 // 높이 제한 적용
                 py = Math.max(60, Math.min(maxHeight, py));
-                plat = { x: px, y: py, width: pw, height: ph, color: '#228B22' };
+                
+                // 움직이는 플랫폼 추가 (20% 확률)
+                const isMoving = Math.random() < 0.2;
+                plat = { 
+                    x: px, 
+                    y: py, 
+                    width: pw, 
+                    height: ph, 
+                    color: '#228B22',
+                    isMoving: isMoving,
+                    originalX: px,
+                    originalY: py,
+                    moveRange: isMoving ? 50 + Math.random() * 100 : 0,
+                    moveSpeed: isMoving ? 0.5 + Math.random() * 1 : 0,
+                    moveDirection: isMoving ? (Math.random() > 0.5 ? 1 : -1) : 0
+                };
                 tries++;
             } while (isOverlapping(plat.x, plat.y, plat.width, plat.height) && tries < 20);
             
@@ -301,9 +324,6 @@ function generateEnemies(stageIdx) {
 }
 
 // --- 스테이지 반복/드롭형 단어 모드 ---
-let wordRepeatCount = 0;
-const maxStage = 5; // 5단계
-
 function startStage(idx) {
     wordRepeatCount = 0;
     const stageData = STAGE_WORDS[idx % STAGE_WORDS.length];
@@ -349,7 +369,7 @@ function spawnJamos() {
     });
 }
 
-// updateJamos에서 falling 관련 코드 제거
+// updateJamos 함수 - 자모 수집 처리
 function updateJamos() {
     jamos.forEach((jamo, idx) => {
         if (!jamo.collected && checkCollision(player, jamo)) {
@@ -359,8 +379,9 @@ function updateJamos() {
                 gameState.collectedJamos.push(jamo.char);
                 gameState.score += 200;
                 if (typeof playSound === 'function') playSound('collect');
+                updateSketchbook(); // 스케치북 업데이트
             } else {
-                // 순서가 아니면 안내 메시지(선택)
+                // 순서가 아니면 안내 메시지
                 const nextJamo = jamos[gameState.collectedJamos.length]?.char || '';
                 showTempMessage(`순서대로 획득하세요! (다음: ${nextJamo})`, 1000);
             }
@@ -370,18 +391,74 @@ function updateJamos() {
 
 function spawnEnemies(stageIdx, repeatCount) {
     const base = STAGE_DIFFICULTY[stageIdx % STAGE_DIFFICULTY.length].enemies;
-    const n = base + repeatCount;
+    const n = (base + repeatCount) * 3; // 3배로 증가
     enemies = [];
+    
+    const enemyTypes = ['robot', 'skeleton', 'alien', 'ghost', 'slime', 'bat'];
+    
     for (let i = 0; i < n; i++) {
-        enemies.push({
-            x: 300 + i * 200 + Math.random() * 100,
-            y: getGroundY() - 25,
+        const enemyType = enemyTypes[i % enemyTypes.length];
+        const baseX = 200 + i * 150 + Math.random() * 200; // 간격 조정
+        const baseY = getGroundY() - 25;
+        
+        let enemy = {
+            x: baseX,
+            y: baseY,
             width: 25,
             height: 25,
             velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3),
             direction: Math.random() > 0.5 ? 1 : -1,
-            alive: true
-        });
+            alive: true,
+            type: enemyType,
+            // 특수 능력 추가
+            canJump: enemyType === 'bat' || enemyType === 'ghost',
+            canFly: enemyType === 'bat',
+            isSlime: enemyType === 'slime',
+            isGhost: enemyType === 'ghost',
+            // 이동 패턴 설정
+            movePattern: getMovePattern(enemyType),
+            // 이동 패턴 관련 변수들
+            jumpTimer: 0,
+            jumpCooldown: 0,
+            originalY: baseY,
+            velocityY: 0,
+            onGround: false,
+            // 구간 이동 설정
+            minX: baseX - 100,
+            maxX: baseX + 100
+        };
+        
+        // 특수 몬스터 위치 조정
+        if (enemy.canFly) {
+            enemy.y = baseY - 50 + Math.random() * 30; // 공중에 배치
+        } else if (enemy.isSlime) {
+            enemy.y = baseY + 5; // 바닥에 가깝게
+            enemy.height = 20; // 더 납작하게
+        } else if (enemy.isGhost) {
+            enemy.y = baseY - 20 + Math.random() * 40; // 중간 높이
+        }
+        
+        enemies.push(enemy);
+    }
+}
+
+// 몬스터 타입별 이동 패턴 설정
+function getMovePattern(enemyType) {
+    switch(enemyType) {
+        case 'robot':
+            return 'normal'; // 보통 속도 좌우 이동
+        case 'skeleton':
+            return 'fast'; // 빠른 속도 좌우 이동
+        case 'alien':
+            return 'jump'; // 통통뛰기 (점프)
+        case 'ghost':
+            return 'float'; // 부드럽게 떠다님
+        case 'slime':
+            return 'slow'; // 느리게 기어다님
+        case 'bat':
+            return 'fly'; // 공중 비행
+        default:
+            return 'normal';
     }
 }
 
@@ -397,51 +474,9 @@ document.addEventListener('keyup', (e) => {
     gameState.keys[e.key.toLowerCase()] = false;
 });
 
-// updateCoins를 updateJamos로 변경
-function updateJamos() {
-    jamos.forEach((jamo, idx) => {
-        if (!jamo.collected && checkCollision(player, jamo)) {
-            // 순서 체크: 다음으로 획득해야 할 자음/모음만 가능
-            if (idx === gameState.collectedJamos.length) {
-                jamo.collected = true;
-                gameState.collectedJamos.push(jamo.char);
-                gameState.score += 200;
-                if (typeof playSound === 'function') playSound('collect');
-            } else {
-                // 순서가 아니면 안내 메시지(선택)
-                const nextJamo = jamos[gameState.collectedJamos.length]?.char || '';
-                showTempMessage(`순서대로 획득하세요! (다음: ${nextJamo})`, 1000);
-            }
-        }
-    });
-}
+// 중복된 updateJamos 함수 제거
 
-// drawCoins를 drawJamos로 변경
-function drawJamos() {
-    jamos.forEach(jamo => {
-        if (jamo.collected) return;
-        ctx.save();
-        ctx.translate(jamo.x - gameState.camera.x + 20, jamo.y + 20); // 중심 보정
-        // 캡슐 크기 확대
-        const capsuleSize = 40;
-        // 캡슐(원)
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#FFF8DC';
-        ctx.beginPath();
-        ctx.arc(0, 0, capsuleSize/2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        // 자음/모음 글자
-        ctx.fillStyle = '#222';
-        ctx.font = 'bold 28px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(jamo.char, 0, 2);
-        ctx.restore();
-    });
-}
+// 중복된 drawJamos 함수 제거
 
 // 한글 조합 함수 (간단 버전)
 function composeHangul(jamos) {
@@ -498,6 +533,7 @@ function gameLoop() {
         return;
     }
     
+    updateMovingPlatforms(); // 움직이는 플랫폼 업데이트
     updatePlayer();
     updateEnemies();
     updateJamos();
@@ -821,9 +857,9 @@ function drawBackground() {
             ctx.restore();
         }
     }
-    // 나무 (맵 전체에 반복)
-    for (let i = 0; i < 12; i++) {
-        let x = (150 + i * 200 - gameState.camera.x * 0.5) % gameState.worldWidth;
+    // 나무 (맵 전체에 반복) - 간격 3배 증가
+    for (let i = 0; i < 4; i++) { // 12개에서 4개로 줄임
+        let x = (150 + i * 600 - gameState.camera.x * 0.5) % gameState.worldWidth; // 200에서 600으로 증가
         if (x < 0) x += gameState.worldWidth;
         let y = getGroundY() - 40; // 바닥에 맞게 높이 조정
         if (x > gameState.camera.x - 50 && x < gameState.camera.x + canvas.width + 50) {
@@ -834,9 +870,9 @@ function drawBackground() {
             ctx.restore();
         }
     }
-    // 꽃 (맵 전체에 반복)
-    for (let i = 0; i < 30; i++) {
-        let x = (80 + i * 80 - gameState.camera.x * 0.7) % gameState.worldWidth;
+    // 꽃 (맵 전체에 반복) - 간격 3배 증가
+    for (let i = 0; i < 10; i++) { // 30개에서 10개로 줄임
+        let x = (80 + i * 240 - gameState.camera.x * 0.7) % gameState.worldWidth; // 80에서 240으로 증가
         if (x < 0) x += gameState.worldWidth;
         let y = getGroundY() - 10; // 바닥에 맞게 높이 조정
         if (x > gameState.camera.x - 30 && x < gameState.camera.x + canvas.width + 30) {
@@ -870,11 +906,30 @@ let stage = {
     jamos: [],
 }; 
 
+// 움직이는 플랫폼 업데이트
+function updateMovingPlatforms() {
+    platforms.forEach(platform => {
+        if (platform.isMoving) {
+            // 움직이는 플랫폼 로직
+            platform.x += platform.moveSpeed * platform.moveDirection;
+            
+            // 이동 범위 제한
+            const distanceFromOriginal = Math.abs(platform.x - platform.originalX);
+            if (distanceFromOriginal > platform.moveRange) {
+                platform.moveDirection *= -1; // 방향 전환
+            }
+        }
+    });
+}
+
 // --- 적 업데이트 ---
 function updateEnemies() {
     enemies.forEach(enemy => {
         if (!enemy.alive) return;
-        enemy.x += enemy.velocityX;
+        
+        // 이동 패턴에 따른 움직임 처리
+        updateEnemyMovement(enemy);
+        
         // 구간 이동 보장
         if (enemy.x < enemy.minX) {
             enemy.x = enemy.minX;
@@ -885,21 +940,25 @@ function updateEnemies() {
             enemy.velocityX *= -1;
             enemy.direction *= -1;
         }
-        // 플랫폼 가장자리에서 방향 전환
-        let onPlatform = false;
-        for (let platform of platforms) {
-            if (enemy.y + enemy.height >= platform.y && 
-                enemy.y + enemy.height <= platform.y + platform.height + 10) {
-                if (enemy.x + enemy.width > platform.x && enemy.x < platform.x + platform.width) {
-                    onPlatform = true;
-                    break;
+        
+        // 플랫폼 가장자리에서 방향 전환 (비행 몬스터 제외)
+        if (enemy.movePattern !== 'fly') {
+            let onPlatform = false;
+            for (let platform of platforms) {
+                if (enemy.y + enemy.height >= platform.y && 
+                    enemy.y + enemy.height <= platform.y + platform.height + 10) {
+                    if (enemy.x + enemy.width > platform.x && enemy.x < platform.x + platform.width) {
+                        onPlatform = true;
+                        break;
+                    }
                 }
             }
+            if (!onPlatform || enemy.x <= 0 || enemy.x >= gameState.worldWidth - enemy.width) {
+                enemy.velocityX *= -1;
+                enemy.direction *= -1;
+            }
         }
-        if (!onPlatform || enemy.x <= 0 || enemy.x >= gameState.worldWidth - enemy.width) {
-            enemy.velocityX *= -1;
-            enemy.direction *= -1;
-        }
+        
         // 플레이어와 충돌 검사
         if (checkCollision(player, enemy) && !player.invulnerable) {
             if (shieldActive) {
@@ -919,24 +978,93 @@ function updateEnemies() {
     });
 }
 
-// --- 자음/모음 업데이트 (순서대로만 획득) ---
-function updateJamos() {
-    jamos.forEach((jamo, idx) => {
-        if (!jamo.collected && checkCollision(player, jamo)) {
-            // 순서 체크: 다음으로 획득해야 할 자음/모음만 가능
-            if (idx === gameState.collectedJamos.length) {
-                jamo.collected = true;
-                gameState.collectedJamos.push(jamo.char);
-                gameState.score += 200;
-                if (typeof playSound === 'function') playSound('collect');
-            } else {
-                // 순서가 아니면 안내 메시지(선택)
-                const nextJamo = jamos[gameState.collectedJamos.length]?.char || '';
-                showTempMessage(`순서대로 획득하세요! (다음: ${nextJamo})`, 1000);
+// 몬스터 이동 패턴 처리
+function updateEnemyMovement(enemy) {
+    switch(enemy.movePattern) {
+        case 'normal':
+            // 로봇: 보통 속도 좌우 이동
+            enemy.x += enemy.velocityX;
+            break;
+            
+        case 'fast':
+            // 해골: 빠른 속도 좌우 이동
+            enemy.x += enemy.velocityX * 1.5;
+            break;
+            
+        case 'jump':
+            // 외계인: 통통뛰기 (점프)
+            updateJumpingEnemy(enemy);
+            break;
+            
+        case 'float':
+            // 유령: 부드럽게 떠다님
+            enemy.x += enemy.velocityX * 0.7;
+            const time = Date.now() * 0.003;
+            enemy.y += Math.sin(time + enemy.x * 0.005) * 0.3;
+            break;
+            
+        case 'slow':
+            // 슬라임: 느리게 기어다님
+            enemy.x += enemy.velocityX * 0.4;
+            break;
+            
+        case 'fly':
+            // 박쥐: 공중 비행
+            enemy.x += enemy.velocityX;
+            const flyTime = Date.now() * 0.002;
+            enemy.y += Math.sin(flyTime + enemy.x * 0.01) * 0.5;
+            break;
+            
+        default:
+            enemy.x += enemy.velocityX;
+    }
+}
+
+// 점프하는 몬스터 업데이트
+function updateJumpingEnemy(enemy) {
+    // 중력 적용
+    enemy.velocityY += 0.6;
+    if (enemy.velocityY > 12) enemy.velocityY = 12;
+    
+    // 위치 업데이트
+    enemy.x += enemy.velocityX;
+    enemy.y += enemy.velocityY;
+    
+    // 바닥 충돌 체크
+    if (enemy.y >= enemy.originalY) {
+        enemy.y = enemy.originalY;
+        enemy.velocityY = 0;
+        enemy.onGround = true;
+    } else {
+        enemy.onGround = false;
+    }
+    
+    // 점프 타이머 업데이트
+    enemy.jumpTimer++;
+    enemy.jumpCooldown--;
+    
+    // 점프 실행
+    if (enemy.onGround && enemy.jumpCooldown <= 0 && enemy.jumpTimer > 120) {
+        enemy.velocityY = -8; // 플레이어 점프력의 절반
+        enemy.jumpTimer = 0;
+        enemy.jumpCooldown = 60; // 점프 후 1초 대기
+    }
+    
+    // 플랫폼 충돌 체크
+    for (let platform of platforms) {
+        if (enemy.y + enemy.height >= platform.y && 
+            enemy.y + enemy.height <= platform.y + platform.height + 5) {
+            if (enemy.x + enemy.width > platform.x && enemy.x < platform.x + platform.width) {
+                enemy.y = platform.y - enemy.height;
+                enemy.velocityY = 0;
+                enemy.onGround = true;
+                break;
             }
         }
-    });
+    }
 }
+
+// 중복된 updateJamos 함수 제거
 
 // --- 임시 메시지 표시 함수 ---
 let tempMsgTimeout = null;
@@ -976,6 +1104,10 @@ function checkStageClear() {
             stage.word = stageData.word;
             stage.hint = stageData.hint;
             stage.jamos = splitHangul(stage.word);
+            
+            // 새로운 구조물 생성
+            regenerateStructures();
+            
             spawnEnemies(stage.index, wordRepeatCount);
             spawnJamos();
             gameState.collectedJamos = [];
@@ -984,6 +1116,32 @@ function checkStageClear() {
             wordRepeatCount = 0;
             startStage(stage.index + 1);
         }
+    }
+}
+
+// 새로운 단어 배치 시 구조물 재생성
+function regenerateStructures() {
+    // 기존 플랫폼과 사다리 제거 (바닥 제외)
+    platforms = platforms.filter(p => p.isGround);
+    ladders = [];
+    
+    // 새로운 플랫폼 생성
+    const newPlatforms = generatePlatforms(stage.index);
+    platforms = newPlatforms;
+    
+    // 플레이어가 공중에 있으면 안전한 위치로 이동
+    let safePlatform = null;
+    for (let platform of platforms) {
+        if (platform.x <= player.x && player.x <= platform.x + platform.width &&
+            Math.abs(player.y - (platform.y - player.height)) < 50) {
+            safePlatform = platform;
+            break;
+        }
+    }
+    
+    if (!safePlatform) {
+        // 안전한 플랫폼이 없으면 바닥으로 이동
+        player.y = getGroundY() - player.height - 10;
     }
 }
 
@@ -1200,36 +1358,38 @@ function drawPlayer() {
         ctx.stroke();
     }
     
-    // 연필심 - 고급 효과
-    const tipGradient = ctx.createLinearGradient(-10, -25, 10, -15);
+    // 머리(위쪽)에 지우개 - 고급 효과
+    const eraserGradient = ctx.createLinearGradient(-10, -21, 10, -15);
+    eraserGradient.addColorStop(0, '#F8BBD0');
+    eraserGradient.addColorStop(0.5, '#F48FB1');
+    eraserGradient.addColorStop(1, '#F06292');
+    ctx.fillStyle = eraserGradient;
+    ctx.fillRect(-10, -21, 20, 6);
+    // 지우개 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(-8, -20, 16, 2);
+    
+    // 꼬리(아래쪽)에 연필심 - 고급 효과
+    const tipGradient = ctx.createLinearGradient(-10, 15, 10, 25);
     tipGradient.addColorStop(0, '#2c3e50');
     tipGradient.addColorStop(0.5, '#34495e');
     tipGradient.addColorStop(1, '#2c3e50');
     ctx.fillStyle = tipGradient;
     ctx.beginPath();
-    ctx.moveTo(-10, -15);
-    ctx.lineTo(0, -25);
-    ctx.lineTo(10, -15);
+    ctx.moveTo(-10, 15);
+    ctx.lineTo(0, 25);
+    ctx.lineTo(10, 15);
     ctx.closePath();
     ctx.fill();
-    
     // 연필심 하이라이트
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath();
-    ctx.moveTo(-8, -15);
-    ctx.lineTo(0, -23);
-    ctx.lineTo(8, -15);
+    ctx.moveTo(-8, 15);
+    ctx.lineTo(0, 23);
+    ctx.lineTo(8, 15);
     ctx.closePath();
     ctx.fill();
-    
-    // 연필 끝(지우개) - 고급 효과
-    const eraserGradient = ctx.createLinearGradient(-10, 15, 10, 21);
-    eraserGradient.addColorStop(0, '#F8BBD0');
-    eraserGradient.addColorStop(0.5, '#F48FB1');
-    eraserGradient.addColorStop(1, '#F06292');
-    ctx.fillStyle = eraserGradient;
-    ctx.fillRect(-10, 15, 20, 6);
-    
+      
     // 지우개 하이라이트
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fillRect(-8, 16, 16, 2);
@@ -1341,6 +1501,11 @@ function drawPlayer() {
     ctx.strokeStyle = '#FFD966'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(10, 6); ctx.lineTo(22, 16); ctx.stroke();
     ctx.restore();
+    
+    // 방패 착용 시 비누방울 보호막 효과
+    if (shieldActive) {
+        drawShieldBubble();
+    }
 }
 
 // drawSyllableUI: 상단 중앙 스케치북 배경에 글자 표시
@@ -1382,181 +1547,450 @@ function drawEnemies() {
         if (!enemy.alive) return;
         ctx.save();
         ctx.translate(enemy.x - gameState.camera.x + enemy.width/2, enemy.y + enemy.height/2);
-        const type = stage.index % 3;
         
-        if (type === 0) { // 로봇 - 고급 효과
-            // 몸통 그라데이션
-            const bodyGradient = ctx.createLinearGradient(-12, -2, 12, 22);
-            bodyGradient.addColorStop(0, '#666');
-            bodyGradient.addColorStop(0.5, '#888');
-            bodyGradient.addColorStop(1, '#666');
-            ctx.fillStyle = bodyGradient;
-            ctx.fillRect(-12, -2, 24, 24);
-            
-            // 몸통 하이라이트
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.fillRect(-10, 0, 20, 8);
-            
-            // 머리 그라데이션
-            const headGradient = ctx.createLinearGradient(-10, -16, 10, 0);
-            headGradient.addColorStop(0, '#aaa');
-            headGradient.addColorStop(0.5, '#ccc');
-            headGradient.addColorStop(1, '#aaa');
-            ctx.fillStyle = headGradient;
-            ctx.fillRect(-10, -16, 20, 16);
-            
-            // 눈(빨간 LED) - 글로우 효과
-            ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 8;
-            ctx.fillStyle = '#ff3333';
-            ctx.fillRect(-6, -10, 4, 4);
-            ctx.fillRect(2, -10, 4, 4);
-            ctx.shadowBlur = 0;
-            
-            // 입(격자)
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); 
-            ctx.moveTo(-4, -2); 
-            ctx.lineTo(4, -2); 
-            ctx.stroke();
-            ctx.beginPath(); 
-            ctx.moveTo(-2, 0); 
-            ctx.lineTo(2, 0); 
-            ctx.stroke();
-            
-            // 안테나
-            ctx.strokeStyle = '#666';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); 
-            ctx.moveTo(0, -16); 
-            ctx.lineTo(0, -22); 
-            ctx.stroke();
-            ctx.fillStyle = '#ff3333';
-            ctx.beginPath(); 
-            ctx.arc(0, -22, 2, 0, Math.PI*2); 
-            ctx.fill();
-            
-        } else if (type === 1) { // 해골 - 고급 효과
-            // 머리 그라데이션
-            const skullGradient = ctx.createRadialGradient(0, -4, 0, 0, -4, 12);
-            skullGradient.addColorStop(0, '#fff');
-            skullGradient.addColorStop(0.7, '#eee');
-            skullGradient.addColorStop(1, '#ddd');
-            ctx.fillStyle = skullGradient;
-            ctx.beginPath(); 
-            ctx.arc(0, -4, 12, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 턱
-            ctx.fillStyle = '#eee';
-            ctx.beginPath(); 
-            ctx.ellipse(0, 8, 10, 6, 0, 0, Math.PI, false); 
-            ctx.fill();
-            
-            // 눈구멍 - 어둡게
-            ctx.fillStyle = '#000';
-            ctx.beginPath(); 
-            ctx.ellipse(-5, -6, 3, 5, 0, 0, Math.PI*2); 
-            ctx.fill();
-            ctx.beginPath(); 
-            ctx.ellipse(5, -6, 3, 5, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 코구멍
-            ctx.beginPath(); 
-            ctx.ellipse(0, -2, 1.2, 2, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 이빨
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1.5;
-            for (let i = -6; i <= 6; i += 3) {
-                ctx.beginPath(); 
-                ctx.moveTo(i, 10); 
-                ctx.lineTo(i, 14); 
-                ctx.stroke();
-            }
-            ctx.beginPath(); 
-            ctx.moveTo(-6, 14); 
-            ctx.lineTo(6, 14); 
-            ctx.stroke();
-            
-        } else { // 외계인 - 고급 효과
-            // 머리 그라데이션
-            const alienGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
-            alienGradient.addColorStop(0, '#7fffd4');
-            alienGradient.addColorStop(0.7, '#40e0d0');
-            alienGradient.addColorStop(1, '#20b2aa');
-            ctx.fillStyle = alienGradient;
-            ctx.beginPath(); 
-            ctx.ellipse(0, 0, 13, 18, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 머리 하이라이트
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.beginPath(); 
-            ctx.ellipse(-3, -8, 8, 6, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 눈(크고 검은 타원)
-            ctx.fillStyle = '#000';
-            ctx.beginPath(); 
-            ctx.ellipse(-5, -4, 4, 8, 0, 0, Math.PI*2); 
-            ctx.fill();
-            ctx.beginPath(); 
-            ctx.ellipse(5, -4, 4, 8, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 눈 하이라이트
-            ctx.fillStyle = 'rgba(255,255,255,0.8)';
-            ctx.beginPath(); 
-            ctx.ellipse(-6, -6, 1.5, 2, 0, 0, Math.PI*2); 
-            ctx.fill();
-            ctx.beginPath(); 
-            ctx.ellipse(4, -6, 1.5, 2, 0, 0, Math.PI*2); 
-            ctx.fill();
-            
-            // 입(작고 얇게)
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); 
-            ctx.arc(0, 8, 4, 0, Math.PI, false); 
-            ctx.stroke();
+        // 몬스터 타입에 따른 그리기
+        switch(enemy.type) {
+            case 'robot':
+                drawRobot(enemy);
+                break;
+            case 'skeleton':
+                drawSkeleton(enemy);
+                break;
+            case 'alien':
+                drawAlien(enemy);
+                break;
+            case 'ghost':
+                drawGhost(enemy);
+                break;
+            case 'slime':
+                drawSlime(enemy);
+                break;
+            case 'bat':
+                drawBat(enemy);
+                break;
+            default:
+                drawRobot(enemy); // 기본값
         }
-        
-        // 그림자 효과
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath();
-        ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI*2);
-        ctx.fill();
         
         ctx.restore();
     });
 }
 
+// 로봇 몬스터 그리기
+function drawRobot(enemy) {
+    // 몸통 그라데이션
+    const bodyGradient = ctx.createLinearGradient(-12, -2, 12, 22);
+    bodyGradient.addColorStop(0, '#666');
+    bodyGradient.addColorStop(0.5, '#888');
+    bodyGradient.addColorStop(1, '#666');
+    ctx.fillStyle = bodyGradient;
+    ctx.fillRect(-12, -2, 24, 24);
+    
+    // 몸통 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(-10, 0, 20, 8);
+    
+    // 머리 그라데이션
+    const headGradient = ctx.createLinearGradient(-10, -16, 10, 0);
+    headGradient.addColorStop(0, '#aaa');
+    headGradient.addColorStop(0.5, '#ccc');
+    headGradient.addColorStop(1, '#aaa');
+    ctx.fillStyle = headGradient;
+    ctx.fillRect(-10, -16, 20, 16);
+    
+    // 눈(빨간 LED) - 글로우 효과
+    ctx.shadowColor = '#ff0000';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#ff3333';
+    ctx.fillRect(-6, -10, 4, 4);
+    ctx.fillRect(2, -10, 4, 4);
+    ctx.shadowBlur = 0;
+    
+    // 입(격자)
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); 
+    ctx.moveTo(-4, -2); 
+    ctx.lineTo(4, -2); 
+    ctx.stroke();
+    ctx.beginPath(); 
+    ctx.moveTo(-2, 0); 
+    ctx.lineTo(2, 0); 
+    ctx.stroke();
+    
+    // 안테나
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); 
+    ctx.moveTo(0, -16); 
+    ctx.lineTo(0, -22); 
+    ctx.stroke();
+    ctx.fillStyle = '#ff3333';
+    ctx.beginPath(); 
+    ctx.arc(0, -22, 2, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 그림자
+    drawEnemyShadow();
+}
+
+// 해골 몬스터 그리기
+function drawSkeleton(enemy) {
+    // 머리 그라데이션
+    const skullGradient = ctx.createRadialGradient(0, -4, 0, 0, -4, 12);
+    skullGradient.addColorStop(0, '#fff');
+    skullGradient.addColorStop(0.7, '#eee');
+    skullGradient.addColorStop(1, '#ddd');
+    ctx.fillStyle = skullGradient;
+    ctx.beginPath(); 
+    ctx.arc(0, -4, 12, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 턱
+    ctx.fillStyle = '#eee';
+    ctx.beginPath(); 
+    ctx.ellipse(0, 8, 10, 6, 0, 0, Math.PI, false); 
+    ctx.fill();
+    
+    // 눈구멍 - 어둡게
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); 
+    ctx.ellipse(-5, -6, 3, 5, 0, 0, Math.PI*2); 
+    ctx.fill();
+    ctx.beginPath(); 
+    ctx.ellipse(5, -6, 3, 5, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 코구멍
+    ctx.beginPath(); 
+    ctx.ellipse(0, -2, 1.2, 2, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 이빨
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    for (let i = -6; i <= 6; i += 3) {
+        ctx.beginPath(); 
+        ctx.moveTo(i, 10); 
+        ctx.lineTo(i, 14); 
+        ctx.stroke();
+    }
+    ctx.beginPath(); 
+    ctx.moveTo(-6, 14); 
+    ctx.lineTo(6, 14); 
+    ctx.stroke();
+    
+    // 그림자
+    drawEnemyShadow();
+}
+
+// 외계인 몬스터 그리기
+function drawAlien(enemy) {
+    // 머리 그라데이션
+    const alienGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+    alienGradient.addColorStop(0, '#7fffd4');
+    alienGradient.addColorStop(0.7, '#40e0d0');
+    alienGradient.addColorStop(1, '#20b2aa');
+    ctx.fillStyle = alienGradient;
+    ctx.beginPath(); 
+    ctx.ellipse(0, 0, 13, 18, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 머리 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath(); 
+    ctx.ellipse(-3, -8, 8, 6, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 눈(크고 검은 타원)
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); 
+    ctx.ellipse(-5, -4, 4, 8, 0, 0, Math.PI*2); 
+    ctx.fill();
+    ctx.beginPath(); 
+    ctx.ellipse(5, -4, 4, 8, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 눈 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); 
+    ctx.ellipse(-6, -6, 1.5, 2, 0, 0, Math.PI*2); 
+    ctx.fill();
+    ctx.beginPath(); 
+    ctx.ellipse(4, -6, 1.5, 2, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    // 입(작고 얇게)
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); 
+    ctx.arc(0, 8, 4, 0, Math.PI, false); 
+    ctx.stroke();
+    
+    // 그림자
+    drawEnemyShadow();
+}
+
+// 유령 몬스터 그리기
+function drawGhost(enemy) {
+    const time = Date.now() * 0.003;
+    const float = Math.sin(time) * 3;
+    
+    // 유령 몸통 (반투명)
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#e0e0e0';
+    ctx.beginPath();
+    ctx.arc(0, float, 12, 0, Math.PI, false);
+    ctx.fill();
+    
+    // 유령 꼬리 (물결 모양)
+    ctx.beginPath();
+    ctx.moveTo(-12, float);
+    for (let i = 0; i < 3; i++) {
+        const x = -12 + i * 8;
+        const y = float + Math.sin(time + i) * 2;
+        ctx.lineTo(x, y);
+    }
+    ctx.lineTo(12, float);
+    ctx.fill();
+    
+    // 눈 (빈 원)
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-4, float - 4, 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(4, float - 4, 2, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // 입
+    ctx.beginPath();
+    ctx.arc(0, float + 2, 3, 0, Math.PI, false);
+    ctx.stroke();
+    
+    ctx.globalAlpha = 1;
+}
+
+// 슬라임 몬스터 그리기
+function drawSlime(enemy) {
+    const time = Date.now() * 0.005;
+    const wobble = Math.sin(time) * 2;
+    
+    // 슬라임 몸통 (젤리 같은 효과)
+    const slimeGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+    slimeGradient.addColorStop(0, '#90EE90');
+    slimeGradient.addColorStop(0.7, '#32CD32');
+    slimeGradient.addColorStop(1, '#228B22');
+    ctx.fillStyle = slimeGradient;
+    ctx.beginPath();
+    ctx.ellipse(wobble, 0, 12 + Math.abs(wobble), 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 슬라임 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-3, -2, 4, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 눈
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(-3, -1, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(3, -1, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 입
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 2, 2, 0, Math.PI, false);
+    ctx.stroke();
+}
+
+// 박쥐 몬스터 그리기
+function drawBat(enemy) {
+    const time = Date.now() * 0.008;
+    const wingFlap = Math.sin(time) * 10;
+    
+    // 박쥐 몸통
+    ctx.fillStyle = '#2F2F2F';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 날개 (깜빡이는 효과)
+    ctx.fillStyle = '#1A1A1A';
+    ctx.beginPath();
+    ctx.ellipse(-8, wingFlap, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(8, -wingFlap, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 귀
+    ctx.fillStyle = '#2F2F2F';
+    ctx.beginPath();
+    ctx.arc(-2, -6, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2, -6, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 눈 (빨간색)
+    ctx.fillStyle = '#FF3333';
+    ctx.beginPath();
+    ctx.arc(-2, -2, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(2, -2, 1, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// 몬스터 그림자 그리기 (공통 함수)
+function drawEnemyShadow() {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(0, 15, 12, 4, 0, 0, Math.PI*2);
+    ctx.fill();
+}
+
+// 방패 비누방울 보호막 그리기
+function drawShieldBubble() {
+    const time = Date.now() * 0.003;
+    const pulse = Math.sin(time) * 0.1 + 0.9; // 0.8 ~ 1.0 사이로 깜빡임
+    
+    // 플레이어 중심점으로 이동
+    ctx.save();
+    ctx.translate(player.x - gameState.camera.x + player.width/2, player.y + player.height/2);
+    
+    // 비누방울 효과 - 여러 겹의 원
+    for (let i = 0; i < 3; i++) {
+        const radius = 35 + i * 8;
+        const alpha = (0.3 - i * 0.1) * pulse;
+        
+        // 비누방울 그라데이션
+        const bubbleGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+        bubbleGradient.addColorStop(0, `rgba(135, 206, 250, ${alpha})`); // 하늘색
+        bubbleGradient.addColorStop(0.3, `rgba(100, 149, 237, ${alpha})`); // 콘플라워 블루
+        bubbleGradient.addColorStop(0.7, `rgba(70, 130, 180, ${alpha})`); // 스틸 블루
+        bubbleGradient.addColorStop(1, `rgba(25, 25, 112, ${alpha})`); // 미드나이트 블루
+        
+        ctx.fillStyle = bubbleGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 비누방울 테두리 (무지개 효과)
+        const borderGradient = ctx.createLinearGradient(-radius, -radius, radius, radius);
+        borderGradient.addColorStop(0, `rgba(255, 0, 0, ${alpha})`); // 빨강
+        borderGradient.addColorStop(0.2, `rgba(255, 165, 0, ${alpha})`); // 주황
+        borderGradient.addColorStop(0.4, `rgba(255, 255, 0, ${alpha})`); // 노랑
+        borderGradient.addColorStop(0.6, `rgba(0, 255, 0, ${alpha})`); // 초록
+        borderGradient.addColorStop(0.8, `rgba(0, 0, 255, ${alpha})`); // 파랑
+        borderGradient.addColorStop(1, `rgba(128, 0, 128, ${alpha})`); // 보라
+        
+        ctx.strokeStyle = borderGradient;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+    
+    // 비누방울 하이라이트 (빛나는 효과)
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.6 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(-8, -8, 6, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 비누방울 반사광
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(5, -12, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 비누방울 내부 물결 효과
+    for (let i = 0; i < 5; i++) {
+        const angle = time + i * Math.PI / 3;
+        const x = Math.cos(angle) * (20 + i * 3);
+        const y = Math.sin(angle) * (15 + i * 2);
+        const size = 2 + Math.sin(time * 2 + i) * 1;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // 글로우 효과
+    ctx.shadowColor = '#87CEEB';
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = `rgba(135, 206, 250, ${0.5 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 40, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    
+    ctx.restore();
+}
+
 function drawJamos() {
-    jamos.forEach(jamo => {
+    jamos.forEach((jamo, index) => {
         if (jamo.collected) return;
+        
+        // 다음에 획득해야 할 자모인지 확인
+        const isNextToCollect = index === gameState.collectedJamos.length;
+        
         ctx.save();
         ctx.translate(jamo.x - gameState.camera.x + 20, jamo.y + 20); // 중심 보정
-        // 캡슐 크기 확대
         const capsuleSize = 40;
-        // 캡슐(원)
+        
+        // 캡슐 배경색 결정
+        if (isNextToCollect) {
+            // 다음에 획득해야 할 캡슐: 밝은 노란색 배경, 빨간색 테두리
+            ctx.fillStyle = '#FFFF99';
+            ctx.strokeStyle = '#FF4444';
+            ctx.lineWidth = 4;
+        } else {
+            // 일반 캡슐: 기존 색상
+            ctx.fillStyle = '#FFF8DC';
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
+        }
+        
+        // 캡슐(원) 그리기
         ctx.globalAlpha = 1;
-        ctx.fillStyle = '#FFF8DC';
         ctx.beginPath();
         ctx.arc(0, 0, capsuleSize/2, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
         ctx.stroke();
-        // 자음/모음 글자
-        ctx.fillStyle = '#222';
+        
+        // 자음/모음 글자 색상 결정
+        if (isNextToCollect) {
+            ctx.fillStyle = '#CC0000'; // 빨간색 글자로 강조
+        } else {
+            ctx.fillStyle = '#222'; // 일반 검은색
+        }
+        
         ctx.font = 'bold 28px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(jamo.char, 0, 2);
+        
+        // 다음에 획득해야 할 캡슐에 깜빡이는 효과 추가
+        if (isNextToCollect) {
+            const time = Date.now() * 0.005;
+            const pulse = Math.sin(time) * 0.3 + 0.7;
+            ctx.globalAlpha = pulse;
+            ctx.strokeStyle = '#FF6666';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, capsuleSize/2 + 5, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        
         ctx.restore();
     });
 }
@@ -1605,44 +2039,82 @@ function drawPlatforms() {
             }
             return;
         }
-        // ... 나머지 플랫폼(중간, 공중)은 기존 코드 유지 ...
+        // 움직이는 플랫폼과 일반 플랫폼 구분
         const tileW = 32, tileH = 20;
         const tilesX = Math.floor(platform.width / tileW);
         const tilesY = Math.floor(platform.height / tileH);
+        
+        // 움직이는 플랫폼인지 확인
+        const isMoving = platform.isMoving;
+        
         for (let tx = 0; tx < tilesX; tx++) {
             for (let ty = 0; ty < tilesY; ty++) {
                 const x = platform.x - gameState.camera.x + tx * tileW;
                 const y = platform.y + ty * tileH;
+                
+                // 움직이는 플랫폼은 다른 색상 사용
+                let baseColor = '#c97a3a';
+                let highlightColor = '#d2691e';
+                let borderColor = '#8b4513';
+                
+                if (isMoving) {
+                    // 움직이는 플랫폼: 파란색 계열
+                    baseColor = '#4A90E2';
+                    highlightColor = '#5BA0F2';
+                    borderColor = '#2E5BBA';
+                }
+                
                 // 벽돌 그라데이션
                 const brickGradient = ctx.createLinearGradient(x, y, x, y + tileH);
-                brickGradient.addColorStop(0, platform.broken ? '#b8860b' : '#c97a3a');
-                brickGradient.addColorStop(0.5, platform.broken ? '#daa520' : '#d2691e');
-                brickGradient.addColorStop(1, platform.broken ? '#b8860b' : '#c97a3a');
+                brickGradient.addColorStop(0, platform.broken ? '#b8860b' : baseColor);
+                brickGradient.addColorStop(0.5, platform.broken ? '#daa520' : highlightColor);
+                brickGradient.addColorStop(1, platform.broken ? '#b8860b' : baseColor);
                 ctx.fillStyle = brickGradient;
                 ctx.fillRect(x, y, tileW, tileH);
+                
                 // 벽돌 테두리
-                ctx.strokeStyle = '#8b4513';
+                ctx.strokeStyle = borderColor;
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x, y, tileW, tileH);
+                
                 // 벽돌 하이라이트
                 ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 ctx.fillRect(x + 2, y + 2, tileW - 4, 4);
+                
                 // 벽돌 중앙 점
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
                 ctx.arc(x + tileW/2, y + tileH/2, 3, 0, Math.PI*2);
                 ctx.fill();
+                
                 // 벽돌 가로줄
-                ctx.strokeStyle = '#e0a96d';
+                ctx.strokeStyle = isMoving ? '#7BB3F0' : '#e0a96d';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(x, y + tileH/2);
                 ctx.lineTo(x + tileW, y + tileH/2);
                 ctx.stroke();
+                
                 // 벽돌 그림자
                 ctx.fillStyle = 'rgba(0,0,0,0.1)';
                 ctx.fillRect(x + 1, y + 1, tileW - 2, tileH - 2);
             }
+        }
+        
+        // 움직이는 플랫폼에 글로우 효과 추가
+        if (isMoving) {
+            const time = Date.now() * 0.003;
+            const glow = Math.sin(time) * 0.3 + 0.7;
+            
+            ctx.save();
+            ctx.globalAlpha = glow * 0.3;
+            ctx.shadowColor = '#4A90E2';
+            ctx.shadowBlur = 10;
+            ctx.strokeStyle = '#4A90E2';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(platform.x - gameState.camera.x, platform.y, platform.width, platform.height);
+            ctx.shadowBlur = 0;
+            ctx.restore();
         }
     });
 } 
@@ -1715,7 +2187,6 @@ function drawTreasureChest() {
 } 
 
 // 방패(공책) 상태를 별도 관리
-let shieldActive = false;
 // 보물상자 획득 시 shieldActive = true;
 function updateTreasureChest() {
     if (!treasureChest || treasureChest.opened) return;
@@ -1796,23 +2267,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 자모 수집 시 진행 바 업데이트
-function updateJamos() {
-    jamos.forEach((jamo, idx) => {
-        if (!jamo.collected && checkCollision(player, jamo)) {
-            if (idx === gameState.collectedJamos.length) {
-                jamo.collected = true;
-                gameState.collectedJamos.push(jamo.char);
-                gameState.score += 200;
-                if (typeof playSound === 'function') playSound('collect');
-                updateProgressBar(); // 진행 바 갱신
-                updateSketchbook(); // 스케치북 업데이트
-            } else {
-                showTempMessage('순서대로 획득하세요!', 1000);
-            }
-        }
-    });
-}
+// 중복된 updateJamos 함수 제거
 
 // 스테이지 시작 시 진행 바 초기화
 function startStage(idx) {
