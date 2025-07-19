@@ -34,6 +34,14 @@ let itemEffects = {
     magnet: { active: false, timer: 0, duration: 3600 } // 60초 = 3600프레임
 };
 
+// 드롭 아이템 시스템
+let droppedItems = [];
+const DROP_RATES = {
+    ruler: 0.3,    // 30% 확률
+    magnet: 0.25,  // 25% 확률
+    health: 0.4    // 40% 확률 (생명력 회복)
+};
+
 // 플레이어 객체
 let player = {
     x: 100,
@@ -348,6 +356,7 @@ function startStage(idx) {
     spawnEnemies(idx, 0);
     spawnJamos();
     spawnItems();
+    droppedItems = []; // 드롭된 아이템 초기화
     gameState.collectedJamos = [];
     player.x = 100;
     player.y = getGroundY() - player.height - 10;
@@ -411,6 +420,30 @@ function spawnItems() {
     });
 }
 
+// 몬스터가 아이템을 드롭하는 함수
+function dropItemFromEnemy(enemy) {
+    const random = Math.random();
+    let cumulativeRate = 0;
+    
+    for (const [itemType, rate] of Object.entries(DROP_RATES)) {
+        cumulativeRate += rate;
+        if (random <= cumulativeRate) {
+            // 아이템 드롭
+            droppedItems.push({
+                x: enemy.x + enemy.width / 2 - 15,
+                y: enemy.y,
+                width: 30,
+                height: 30,
+                type: itemType,
+                collected: false,
+                velocityY: -3, // 위로 튀어오르는 효과
+                gravity: 0.2
+            });
+            break;
+        }
+    }
+}
+
 // updateJamos 함수 - 자모 수집 처리
 function updateJamos() {
     jamos.forEach((jamo, idx) => {
@@ -469,6 +502,54 @@ function updateItems() {
             if (typeof playSound === 'function') playSound('collect');
         }
     });
+    
+    // 드롭된 아이템 업데이트
+    droppedItems.forEach((item, index) => {
+        // 중력 효과
+        item.velocityY += item.gravity;
+        item.y += item.velocityY;
+        
+        // 바닥에 닿으면 멈춤
+        if (item.y >= getGroundY() - item.height) {
+            item.y = getGroundY() - item.height;
+            item.velocityY = 0;
+        }
+        
+        // 플레이어와 충돌 체크
+        if (!item.collected && checkCollision(player, item)) {
+            item.collected = true;
+            gameState.score += 300;
+            
+            if (item.type === 'ruler') {
+                // 자 아이템 효과
+                itemEffects.ruler.active = true;
+                itemEffects.ruler.timer = itemEffects.ruler.duration;
+                player.width = 45;
+                player.height = 45;
+                player.jumpPower = 15.84;
+                showTempMessage('자 획득! 크기와 점프력이 증가했습니다!', 3000);
+            } else if (item.type === 'magnet') {
+                // 막대자석 아이템 효과
+                itemEffects.magnet.active = true;
+                itemEffects.magnet.timer = itemEffects.magnet.duration;
+                showTempMessage('막대자석 획득! 자모를 끌어당깁니다!', 3000);
+            } else if (item.type === 'health') {
+                // 생명력 회복 아이템
+                if (gameState.lives < 3) {
+                    gameState.lives++;
+                    showTempMessage('생명력 회복!', 2000);
+                } else {
+                    gameState.score += 200; // 생명력이 가득이면 점수 추가
+                    showTempMessage('생명력이 가득합니다! 점수를 획득했습니다!', 2000);
+                }
+            }
+            
+            if (typeof playSound === 'function') playSound('collect');
+        }
+    });
+    
+    // 수집된 드롭 아이템 제거
+    droppedItems = droppedItems.filter(item => !item.collected);
     
     // 아이템 효과 타이머 업데이트
     Object.keys(itemEffects).forEach(key => {
@@ -909,6 +990,8 @@ function updatePlayer() {
                 enemy.alive = false;
                 gameState.score += 500;
                 if (typeof playSound === 'function') playSound('stomp');
+                // 몬스터가 아이템을 드롭
+                dropItemFromEnemy(enemy);
             }
         });
     }
@@ -1149,6 +1232,8 @@ function updateEnemies() {
                 gameState.score += 300;
                 player.velocityY = -8; // 밟은 후 튀어오름
                 if (typeof playSound === 'function') playSound('stomp');
+                // 몬스터가 아이템을 드롭
+                dropItemFromEnemy(enemy);
             } else {
                 // 일반 충돌 (데미지)
                 if (shieldActive) {
@@ -2245,6 +2330,89 @@ function drawItems() {
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('자석', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
+            }
+            
+            ctx.restore();
+        }
+    });
+    
+    // 드롭된 아이템 렌더링
+    droppedItems.forEach(item => {
+        if (!item.collected) {
+            ctx.save();
+            
+            if (item.type === 'ruler') {
+                // 자 아이템 렌더링 (드롭된 버전)
+                ctx.fillStyle = '#4CAF50';
+                ctx.strokeStyle = '#2E7D32';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(item.x - gameState.camera.x, item.y - gameState.camera.y, item.width, item.height, 6);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 자 모양 그리기
+                ctx.fillStyle = '#2E7D32';
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 8, 20, 3);
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 15, 20, 3);
+                ctx.fillRect(item.x - gameState.camera.x + 5, item.y - gameState.camera.y + 22, 20, 3);
+                
+                // 글자
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('자', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
+                
+            } else if (item.type === 'magnet') {
+                // 막대자석 아이템 렌더링 (드롭된 버전)
+                ctx.fillStyle = '#2196F3';
+                ctx.strokeStyle = '#1976D2';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(item.x - gameState.camera.x, item.y - gameState.camera.y, item.width, item.height, 6);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 자석 모양 그리기
+                ctx.fillStyle = '#1976D2';
+                ctx.fillRect(item.x - gameState.camera.x + 8, item.y - gameState.camera.y + 5, 14, 20);
+                ctx.fillStyle = '#FF5722';
+                ctx.fillRect(item.x - gameState.camera.x + 10, item.y - gameState.camera.y + 7, 10, 16);
+                
+                // 글자
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('자석', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
+                
+            } else if (item.type === 'health') {
+                // 생명력 회복 아이템 렌더링
+                ctx.fillStyle = '#FF5722';
+                ctx.strokeStyle = '#D32F2F';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(item.x - gameState.camera.x, item.y - gameState.camera.y, item.width, item.height, 6);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 하트 모양 그리기
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(item.x - gameState.camera.x + 15, item.y - gameState.camera.y + 15, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#FF5722';
+                ctx.beginPath();
+                ctx.arc(item.x - gameState.camera.x + 15, item.y - gameState.camera.y + 15, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 글자
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('♥', item.x - gameState.camera.x + item.width/2, item.y - gameState.camera.y + item.height/2);
             }
             
             ctx.restore();
