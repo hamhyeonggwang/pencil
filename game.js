@@ -35,7 +35,7 @@ let player = {
     velocityX: 0,
     velocityY: 0,
     speed: 5, // 기본 속도
-    jumpPower: 12, // 기본 점프력
+    jumpPower: 14.4, // 기본 점프력 (20% 증가)
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
@@ -564,7 +564,7 @@ function setupSpeedSettings() {
     jumpSlider.addEventListener('input', (e) => {
         jumpMultiplier = e.target.value / 100;
         jumpValue.textContent = e.target.value;
-        player.jumpPower = 12 * jumpMultiplier;
+        player.jumpPower = 14.4 * jumpMultiplier;
     });
 
     // 적 속도 슬라이더
@@ -590,7 +590,7 @@ function setupSpeedSettings() {
         jumpMultiplier = 1;
         enemySpeedMultiplier = 1;
         player.speed = 5;
-        player.jumpPower = 12;
+        player.jumpPower = 14.4;
         speedValue.textContent = '100';
         jumpValue.textContent = '100';
         enemySpeedValue.textContent = '100';
