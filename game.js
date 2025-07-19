@@ -29,8 +29,8 @@ let player = {
     height: 30,
     velocityX: 0,
     velocityY: 0,
-    speed: 5,
-    jumpPower: 15, // 점프력 증가
+    speed: 5, // 원래 속도로 복원
+    jumpPower: 15, // 원래 점프력으로 복원
     onGround: false,
     direction: 1, // 1: 오른쪽, -1: 왼쪽
     invulnerable: false,
@@ -406,7 +406,7 @@ function spawnEnemies(stageIdx, repeatCount) {
             y: baseY,
             width: 25,
             height: 25,
-            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3),
+            velocityX: (Math.random() > 0.5 ? 1 : -1) * (1 + repeatCount * 0.3), // 원래 속도로 복원
             direction: Math.random() > 0.5 ? 1 : -1,
             alive: true,
             type: enemyType,
@@ -524,6 +524,7 @@ function startGame() {
 startText.addEventListener('click', startGame);
 
 function gameLoop() {
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
     
