@@ -1461,15 +1461,29 @@ function drawPlayer() {
         ctx.beginPath(); 
         ctx.arc(0, 2, 2.5, 0, Math.PI, false); 
         ctx.stroke();
-        
-        // 팔
-        ctx.strokeStyle = '#FFD966'; 
-        ctx.lineWidth = 3;
-        ctx.beginPath(); 
-        ctx.moveTo(-12, 0); 
-        ctx.lineTo(-18, 8); 
-        ctx.stroke();
     }
+    
+    // 일반 팔 - 방향에 따라 위치 조정
+    if (!onLadder) {
+        if (player.direction === 1) {
+            // 오른쪽 바라볼 때: 왼팔 (반대쪽)
+            ctx.strokeStyle = '#FFD966'; 
+            ctx.lineWidth = 3;
+            ctx.beginPath(); 
+            ctx.moveTo(-12, 0); 
+            ctx.lineTo(-18, 8); 
+            ctx.stroke();
+        } else {
+            // 왼쪽 바라볼 때: 오른팔 (반대쪽)
+            ctx.strokeStyle = '#FFD966'; 
+            ctx.lineWidth = 3;
+            ctx.beginPath(); 
+            ctx.moveTo(12, 0); 
+            ctx.lineTo(18, 8); 
+            ctx.stroke();
+        }
+    }
+    
     // 다리 - 고급 효과
     ctx.strokeStyle = '#8B4513';
     ctx.lineWidth = 4;
@@ -1494,12 +1508,6 @@ function drawPlayer() {
     ctx.moveTo(7, 16); 
     ctx.lineTo(7, 24); 
     ctx.stroke();
-    ctx.restore();
-    // 지팡이(요술봉) 애니메이션 블록 삭제 (중복)
-    // 오른팔(오른쪽) 항상 그림
-    ctx.save();
-    ctx.strokeStyle = '#FFD966'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(10, 6); ctx.lineTo(22, 16); ctx.stroke();
     ctx.restore();
     
     // 방패 착용 시 비누방울 보호막 효과
