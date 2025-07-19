@@ -2479,16 +2479,19 @@ function setupMobileControls() {
     // 점프 버튼
     btnJump.addEventListener('touchstart', e => { 
         e.preventDefault(); 
+        gameState.keys['w'] = true;
         if (!jumpPressed) {
             jumpPressed = true;
         }
     });
     btnJump.addEventListener('touchend', e => { 
         e.preventDefault(); 
+        gameState.keys['w'] = false;
         jumpPressed = false; 
     });
     btnJump.addEventListener('touchcancel', e => { 
         e.preventDefault(); 
+        gameState.keys['w'] = false;
         jumpPressed = false; 
     });
     
